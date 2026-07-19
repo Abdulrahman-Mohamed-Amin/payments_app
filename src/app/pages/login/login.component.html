@@ -1,0 +1,138 @@
+<div class="min-h-screen flex bg-canvas">
+  <!-- ===================== FORM SIDE ===================== -->
+  <div class="flex w-full lg:w-1/2 items-center justify-center p-6">
+    <div class="w-full max-w-sm anim-pop">
+      <!-- Logo (mobile + always) -->
+      <div class="flex items-center gap-3 mb-8">
+        <div class="grid h-11 w-11 place-items-center rounded-xl bg-brand text-white font-bold text-lg">م</div>
+        <div>
+          <p class="font-bold leading-tight">مدائن العقارية</p>
+          <p class="text-xs text-ink-muted leading-tight">إدارة الأملاك</p>
+        </div>
+      </div>
+
+      <h1 class="text-2xl font-bold">تسجيل الدخول</h1>
+      <p class="text-sm text-ink-muted mt-1.5">أهلاً بعودتك، أدخل بياناتك للمتابعة إلى لوحة التحكم.</p>
+
+      <form class="mt-7 space-y-4" (ngSubmit)="submit()">
+        <!-- Username -->
+        <label class="block">
+          <span class="text-xs font-semibold text-ink-muted">اسم المستخدم</span>
+          <div class="relative mt-1.5">
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint"><app-icon name="mail" cls="h-4 w-4" /></span>
+            <input
+              [(ngModel)]="username"
+              name="username"
+              type="text"
+              dir="ltr"
+              placeholder="abdo10"
+              autocomplete="username"
+              class="w-full rounded-xl border border-line bg-white pr-11 pl-3 py-3 text-sm text-left placeholder:text-ink-faint focus:outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100 transition"
+            />
+          </div>
+        </label>
+
+        <!-- Password -->
+        <label class="block">
+          <span class="text-xs font-semibold text-ink-muted">كلمة المرور</span>
+          <div class="relative mt-1.5">
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint"><app-icon name="lock" cls="h-4 w-4" /></span>
+            <input
+              [(ngModel)]="password"
+              name="password"
+              [type]="showPassword ? 'text' : 'password'"
+              dir="ltr"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              class="w-full rounded-xl border border-line bg-white pr-11 pl-11 py-3 text-sm text-left placeholder:text-ink-faint focus:outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100 transition"
+            />
+            <button
+              type="button"
+              (click)="showPassword = !showPassword"
+              class="absolute left-2 top-1/2 -translate-y-1/2 grid h-8 w-8 place-items-center rounded-lg text-ink-faint hover:bg-canvas transition"
+            >
+              <app-icon [name]="showPassword ? 'eyeOff' : 'eye'" cls="h-4 w-4" />
+            </button>
+          </div>
+        </label>
+
+        <!-- Error message -->
+        @if (errorMsg) {
+          <div class="flex items-center gap-2 rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] px-4 py-3">
+            <app-icon name="alert" cls="h-4 w-4 text-[#DC2626] shrink-0" />
+            <p class="text-sm text-[#DC2626]">{{ errorMsg }}</p>
+          </div>
+        }
+
+        <!-- Submit -->
+        <button
+          type="submit"
+          [disabled]="!valid || submitting"
+          class="w-full flex items-center justify-center gap-2 rounded-xl bg-brand py-3 text-sm font-semibold text-white shadow-card hover:bg-brand-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          @if (submitting) {
+            <span class="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+            جاري الدخول…
+          } @else {
+            تسجيل الدخول <app-icon name="arrow" cls="h-4 w-4" />
+          }
+        </button>
+      </form>
+
+      <!-- Divider -->
+      <div class="flex items-center gap-3 my-6">
+        <span class="h-px flex-1 bg-line"></span>
+        <span class="text-xs text-ink-faint">أو</span>
+        <span class="h-px flex-1 bg-line"></span>
+      </div>
+
+      <p class="text-center text-sm text-ink-muted">
+        ليس لديك حساب؟
+        <a href="#" class="font-semibold text-brand-700 hover:text-brand-600 transition">تواصل مع المسؤول</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- ===================== BRAND SIDE ===================== -->
+  <div class="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
+    <div class="absolute -top-16 -left-16 h-64 w-64 rounded-full bg-white/10"></div>
+    <div class="absolute bottom-10 -left-24 h-72 w-72 rounded-full bg-white/5"></div>
+    <div class="absolute -bottom-20 right-10 h-48 w-48 rounded-full bg-white/5"></div>
+
+    <div class="relative flex items-center gap-2 text-white/90">
+      <app-icon name="shield" cls="h-5 w-5" />
+      <span class="text-sm font-medium">شركة مدائن العقارية — منصّة آمنة لإدارة الأملاك</span>
+    </div>
+
+    <div class="relative">
+      <h2 class="text-3xl font-bold leading-snug">
+        أدِر أملاكك وعقودك<br />من مكانٍ واحد.
+      </h2>
+      <p class="text-white/80 mt-4 leading-relaxed max-w-md">
+        نظام متكامل لمتابعة العقود والدفعات لحظياً، مع تنبيهات فورية عند أي استحقاق.
+      </p>
+
+      <ul class="mt-8 space-y-3">
+        @for (h of highlights; track h) {
+          <li class="flex items-center gap-3">
+            <span class="grid h-7 w-7 place-items-center rounded-lg bg-white/20"><app-icon name="check" cls="h-4 w-4" /></span>
+            <span class="text-sm">{{ h }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+
+    <div class="relative rounded-2xl bg-white/10 backdrop-blur border border-white/15 p-5 max-w-md">
+      <p class="text-sm leading-relaxed">
+        «منصّة مدائن العقارية منحتنا رؤية كاملة على كل العقود والدفعات في مكان واحد.»
+      </p>
+      <div class="mt-4 flex items-center gap-3">
+        <div class="grid h-9 w-9 place-items-center rounded-full bg-white/20 text-sm font-bold">م</div>
+        <div class="leading-tight">
+          <p class="text-sm font-semibold">شركة مدائن العقارية</p>
+          <p class="text-[11px] text-white/70">إدارة الأملاك والعقود</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

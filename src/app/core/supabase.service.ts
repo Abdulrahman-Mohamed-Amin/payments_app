@@ -1,0 +1,276 @@
+import { Injectable } from '@angular/core';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = 'https://efwfihirfxwncerdsemi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmd2ZpaGlyZnh3bmNlcmRzZW1pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MDA3OTIsImV4cCI6MjA5ODM3Njc5Mn0.MfPy2BQb_zJYHB9Dw1WdzpKIcmFnGkmZ7HVRc0diKMo';
+
+export interface ContractRow {
+  id: string;
+  project_name: string;
+  client_name: string;
+  unit_price: number;
+  first_payment: number;
+  contract_date: string;
+  fields: Record<string, string>;
+  created_at: string;
+}
+
+export interface PaymentRow {
+  id: string;
+  contract_id: string;
+  installment_number: number;
+  label: string;
+  amount: number;
+  due_date: string;
+  paid: boolean;
+  paid_at: string | null;
+  contacted: boolean;
+  contacted_at: string | null;
+  last_reminded_at: string | null;
+  reminder_count: number;
+}
+
+export interface ContractWithPayments extends ContractRow {
+  payments: PaymentRow[];
+}
+
+const INSTALL_LABELS = [
+  'الدفعة الأولى', 'الدفعة الثانية', 'الدفعة الثالثة',
+  'الدفعة الرابعة', 'الدفعة الخامسة', 'الدفعة السادسة',
+];
+
+@Injectable({ providedIn: 'root' })
+export class SupabaseService {
+  private db: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  getClient(): SupabaseClient { return this.db; }
+
+  /** Load all projects ordered by creation */
+  async loadProjects(): Promise<{ id: string; name: string }[]> {
+    const { data } = await this.db.from('projects').select('id, name').order('created_at');
+    return data ?? [];
+  }
+
+  /** Create a new project — returns false if name already exists */
+  async saveProject(name: string): Promise<boolean> {
+    const { error } = await this.db.from('projects').insert({ name });
+    return !error;
+  }
+
+  /** Rename a project — updates both the projects table and all its contracts */
+  async renameProject(oldName: string, newName: string): Promise<boolean> {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) return false;
+    const { error: pe } = await this.db.from('projects').update({ name: trimmed }).eq('name', oldName);
+    if (pe) return false;
+    const { error: ce } = await this.db.from('contracts').update({ project_name: trimmed }).eq('project_name', oldName);
+    return !ce;
+  }
+
+  /** Delete a project and all its contracts/payments */
+  async deleteProject(id: string): Promise<boolean> {
+    const { data: proj } = await this.db.from('projects').select('name').eq('id', id).single();
+    if (!proj) return false;
+    // contracts → payments cascade in DB
+    await this.db.from('contracts').delete().eq('project_name', proj.name);
+    const { error } = await this.db.from('projects').delete().eq('id', id);
+    return !error;
+  }
+
+  /** Check for duplicate client name or unit code within a project.
+   *  Unit code is checked first (higher priority), then client name.
+   *  Returns 'unit' | 'name' | null */
+  async checkDuplicate(projectName: string, clientName: string, unitCode: string): Promise<'name' | 'unit' | null> {
+    if (unitCode.trim()) {
+      const { data: byUnit } = await this.db.from('contracts')
+        .select('id')
+        .eq('project_name', projectName)
+        .filter('fields->>unit_code', 'ilike', unitCode.trim())
+        .limit(1);
+      if (byUnit?.length) return 'unit';
+    }
+
+    const { data: byName } = await this.db.from('contracts')
+      .select('id')
+      .eq('project_name', projectName)
+      .ilike('client_name', clientName.trim())
+      .limit(1);
+    if (byName?.length) return 'name';
+
+    return null;
+  }
+
+  /** Save a new contract + auto-create its 6 payment rows */
+  async saveContract(data: {
+    projectName: string;
+    clientName: string;
+    unitPrice: number;
+    firstPayment: number;
+    contractDate: string;
+    fields: Record<string, string>;
+    installments: { amount: number; dueDate: string }[];
+  }): Promise<{ contractId: string } | { error: string }> {
+    const { data: contract, error: ce } = await this.db
+      .from('contracts')
+      .insert({
+        project_name: data.projectName,
+        client_name: data.clientName,
+        unit_price: data.unitPrice,
+        first_payment: data.firstPayment,
+        contract_date: data.contractDate,
+        fields: data.fields,
+      })
+      .select('id')
+      .single();
+
+    if (ce || !contract) return { error: ce?.message ?? 'خطأ في حفظ العقد' };
+
+    const now = new Date().toISOString();
+    const paymentRows = data.installments.map((inst, i) => ({
+      contract_id: contract.id,
+      installment_number: i + 1,
+      label: INSTALL_LABELS[i],
+      amount: inst.amount,
+      due_date: inst.dueDate,
+      paid: i === 0,
+      paid_at: i === 0 ? now : null,
+    }));
+
+    const { error: pe } = await this.db.from('payments').insert(paymentRows);    if (pe) return { error: pe.message };
+
+    return { contractId: contract.id };
+  }
+
+  /** Load all contracts with their payments */
+  async loadContracts(): Promise<ContractWithPayments[]> {
+    const { data, error } = await this.db
+      .from('contracts')
+      .select('*, payments(*)')
+      .order('created_at', { ascending: false });
+
+    if (error || !data) return [];
+    return data.map((c: any) => ({
+      ...c,
+      payments: (c.payments as PaymentRow[]).sort(
+        (a, b) => a.installment_number - b.installment_number
+      ),
+    }));
+  }
+
+  /** Toggle paid status of a single payment */
+  async togglePayment(id: string, currentPaid: boolean): Promise<boolean> {
+    const { error } = await this.db
+      .from('payments')
+      .update({ paid: !currentPaid, paid_at: !currentPaid ? new Date().toISOString() : null })
+      .eq('id', id);
+    return !error;
+  }
+
+  /** Toggle contacted status of a single payment */
+  async toggleContacted(id: string, current: boolean): Promise<boolean> {
+    const { error } = await this.db
+      .from('payments')
+      .update({ contacted: !current, contacted_at: !current ? new Date().toISOString() : null })
+      .eq('id', id);
+    return !error;
+  }
+
+  /** Update fields + client_name for existing contract by unit_code within a project.
+   *  Merges new fields into existing ones — only non-empty values overwrite. */
+  async updateContractByUnitCode(
+    projectName: string,
+    unitCode: string,
+    updates: { client_name?: string; fields?: Record<string, string> }
+  ): Promise<boolean> {
+    const { data } = await this.db
+      .from('contracts')
+      .select('id, fields')
+      .eq('project_name', projectName)
+      .filter('fields->>unit_code', 'ilike', unitCode.trim())
+      .limit(1)
+      .single();
+    if (!data) return false;
+
+    // Merge: keep existing values for keys that are empty/missing in the update
+    const existing: Record<string, string> = (data as any).fields ?? {};
+    const incoming = updates.fields ?? {};
+    const mergedFields: Record<string, string> = { ...existing };
+    for (const [k, v] of Object.entries(incoming)) {
+      if (v !== '' && v !== null && v !== undefined) mergedFields[k] = v;
+    }
+
+    const payload: Record<string, any> = { fields: mergedFields };
+    if (updates.client_name) payload['client_name'] = updates.client_name;
+
+    const { error } = await this.db.from('contracts').update(payload).eq('id', (data as any).id);
+    return !error;
+  }
+
+  /** Update fields + client_name for existing contract by client name within a project. */
+  async updateContractByName(
+    projectName: string,
+    clientName: string,
+    updates: { client_name?: string; fields?: Record<string, string> }
+  ): Promise<boolean> {
+    const { data } = await this.db
+      .from('contracts')
+      .select('id, fields')
+      .eq('project_name', projectName)
+      .ilike('client_name', clientName.trim())
+      .limit(1)
+      .single();
+    if (!data) return false;
+
+    const existing: Record<string, string> = (data as any).fields ?? {};
+    const incoming = updates.fields ?? {};
+    const mergedFields: Record<string, string> = { ...existing };
+    for (const [k, v] of Object.entries(incoming)) {
+      if (v !== '' && v !== null && v !== undefined) mergedFields[k] = v;
+    }
+
+    const payload: Record<string, any> = { fields: mergedFields };
+    if (updates.client_name) payload['client_name'] = updates.client_name;
+
+    const { error } = await this.db.from('contracts').update(payload).eq('id', (data as any).id);
+    return !error;
+  }
+
+  /** Send an early reminder email for a single payment */
+  async sendEarlyReminder(paymentId: string, projectName: string): Promise<{ sent: boolean; reminder_count?: number; limit_reached?: boolean; error?: string }> {
+    const { data, error } = await this.db.functions.invoke('send-early-reminder', {
+      body: { payment_id: paymentId, project_name: projectName },
+    });
+    if (error) return { sent: false, error: error.message };
+    return data ?? { sent: false };
+  }
+
+  /** Delete a contract and its payments (CASCADE) */
+  async deleteContract(id: string): Promise<boolean> {
+    const { error } = await this.db.from('contracts').delete().eq('id', id);
+    return !error;
+  }
+
+  /** Update client_name, contract_date and/or fields of a contract */
+  async updateContract(id: string, updates: { client_name?: string; contract_date?: string; fields?: Record<string, string> }): Promise<boolean> {
+    const { error } = await this.db.from('contracts').update(updates).eq('id', id);
+    return !error;
+  }
+
+  /** Recalculate and update due_date for all payments of a contract based on new contract date.
+   *  Installment offsets: 0, 3, 6, 9, 12, 15 months from contract date. */
+  async recalcPaymentDates(payments: PaymentRow[], contractDate: string): Promise<PaymentRow[]> {
+    const OFFSETS = [0, 3, 6, 9, 12, 15];
+    const [y, m, d] = contractDate.split('-').map(Number);
+
+    const updated: PaymentRow[] = [];
+    await Promise.all(
+      payments.map((p, i) => {
+        const dt = new Date(y, m - 1 + OFFSETS[i], d);
+        const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        updated[i] = { ...p, due_date: iso };
+        return this.db.from('payments').update({ due_date: iso }).eq('id', p.id);
+      })
+    );
+    return updated;
+  }
+}

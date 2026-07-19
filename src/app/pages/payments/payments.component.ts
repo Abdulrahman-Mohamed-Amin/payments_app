@@ -1,0 +1,169 @@
+import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { IconComponent } from '../../core/icon/icon.component';
+import { SupabaseService, ContractWithPayments } from '../../core/supabase.service';
+import { ToastService } from '../../core/toast.service';
+
+export interface InstallmentSummary {
+  number: number;
+  label: string;
+  paid: number;
+  total: number;
+}
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  clientCount: number;
+  overdueCount: number;
+  paidTotal: number;
+  remaining: number;
+  installments: InstallmentSummary[];
+}
+
+@Component({
+  selector: 'app-payments',
+  standalone: true,
+  imports: [CommonModule, FormsModule, IconComponent],
+  templateUrl: './payments.component.html',
+})
+export class PaymentsComponent implements OnInit {
+  private supa = inject(SupabaseService);
+  private router = inject(Router);
+  private toast = inject(ToastService);
+
+  private _projectsList = signal<{ id: string; name: string }[]>([]);
+  private _contracts = signal<ContractWithPayments[]>([]);
+  loading = signal(true);
+
+  projects = computed<ProjectSummary[]>(() => {
+    const now = new Date();
+    const LABELS = ['الأولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة'];
+    const map = new Map<string, ContractWithPayments[]>();
+    for (const c of this._contracts()) {
+      const list = map.get(c.project_name) ?? [];
+      list.push(c);
+      map.set(c.project_name, list);
+    }
+    return this._projectsList().map(p => {
+      const cs = map.get(p.name) ?? [];
+      const installments: InstallmentSummary[] = Array.from({ length: 6 }, (_, i) => {
+        const num = i + 1;
+        const all = cs.flatMap(c => c.payments.filter(pay => pay.installment_number === num));
+        return {
+          number: num,
+          label: LABELS[i],
+          paid: all.filter(pay => pay.paid).reduce((s, pay) => s + pay.amount, 0),
+          total: all.reduce((s, pay) => s + pay.amount, 0),
+        };
+      }).filter(inst => inst.total > 0);
+      return {
+        id: p.id,
+        name: p.name,
+        clientCount: cs.length,
+        overdueCount: cs.reduce((s, c) =>
+          s + c.payments.filter(pay => !pay.paid && new Date(pay.due_date) < now).length, 0),
+        paidTotal: cs.reduce((s, c) =>
+          s + c.payments.filter(pay => pay.paid).reduce((ss, pay) => ss + pay.amount, 0), 0),
+        remaining: cs.reduce((s, c) =>
+          s + c.unit_price - c.payments.filter(pay => pay.paid).reduce((ss, pay) => ss + pay.amount, 0), 0),
+        installments,
+      };
+    });
+  });
+
+  async ngOnInit() {
+    const [contracts, projects] = await Promise.all([
+      this.supa.loadContracts(),
+      this.supa.loadProjects(),
+    ]);
+    this._contracts.set(contracts);
+    this._projectsList.set(projects);
+    this.loading.set(false);
+  }
+
+  open(proj: ProjectSummary) {
+    this.router.navigate(['/payments', encodeURIComponent(proj.name)]);
+  }
+
+  // ── Delete project ───────────────────────────────────────────────────────────
+  deleteTarget: ProjectSummary | null = null;
+  deleting = false;
+
+  confirmDeleteProject(e: Event, proj: ProjectSummary) {
+    e.stopPropagation();
+    this.deleteTarget = proj;
+  }
+  cancelDeleteProject() { this.deleteTarget = null; }
+  async executeDeleteProject() {
+    if (!this.deleteTarget || this.deleting) return;
+    this.deleting = true;
+    const ok = await this.supa.deleteProject(this.deleteTarget.id);
+    if (ok) {
+      this._projectsList.update(list => list.filter(p => p.id !== this.deleteTarget!.id));
+      this.toast.success('تم حذف المشروع', this.deleteTarget.name);
+    } else {
+      this.toast.error('حدث خطأ', 'لم يتم حذف المشروع');
+    }
+    this.deleteTarget = null;
+    this.deleting = false;
+  }
+
+  // ── Rename project ───────────────────────────────────────────────────────────
+  renameTarget: ProjectSummary | null = null;
+  renameName = '';
+  renameSaving = false;
+
+  confirmRenameProject(e: Event, proj: ProjectSummary) {
+    e.stopPropagation();
+    this.renameTarget = proj;
+    this.renameName = proj.name;
+  }
+  cancelRenameProject() { this.renameTarget = null; this.renameName = ''; }
+  async executeRenameProject() {
+    const target = this.renameTarget;
+    const newName = this.renameName.trim();
+    if (!target || !newName || newName === target.name || this.renameSaving) return;
+    this.renameSaving = true;
+    const ok = await this.supa.renameProject(target.name, newName);
+    if (ok) {
+      this._projectsList.update(list => list.map(p => p.id === target.id ? { ...p, name: newName } : p));
+      const contracts = await this.supa.loadContracts();
+      this._contracts.set(contracts);
+      this.toast.success('تم تعديل اسم المشروع', newName);
+    } else {
+      this.toast.error('حدث خطأ', 'لم يتم تعديل الاسم');
+    }
+    this.renameSaving = false;
+    this.cancelRenameProject();
+  }
+
+  // ── Add project ─────────────────────────────────────────────────────────────
+  addOpen = false;
+  addName = '';
+  addSaving = false;
+
+  openAdd() { this.addName = ''; this.addOpen = true; }
+  closeAdd() { this.addOpen = false; }
+
+  async submitAdd() {
+    const name = this.addName.trim();
+    if (!name || this.addSaving) return;
+    this.addSaving = true;
+    const ok = await this.supa.saveProject(name);
+    this.addSaving = false;
+    if (ok) {
+      const projects = await this.supa.loadProjects();
+      this._projectsList.set(projects);
+      this.toast.success('تم إنشاء المشروع', name);
+      this.addOpen = false;
+      this.router.navigate(['/payments', encodeURIComponent(name)]);
+    } else {
+      this.toast.error('اسم المشروع موجود مسبقاً');
+    }
+  }
+
+  fmt(n: number): string { return n.toLocaleString('en-US'); }
+}

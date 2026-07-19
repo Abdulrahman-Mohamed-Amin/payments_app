@@ -1,0 +1,694 @@
+import { Component, ElementRef, inject, OnInit, OnDestroy, signal, computed, ViewChild } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { RealtimeChannel } from '@supabase/supabase-js';
+import * as XLSX from 'xlsx';
+import { IconComponent } from '../../core/icon/icon.component';
+import { SupabaseService, ContractWithPayments, PaymentRow } from '../../core/supabase.service';
+import { ToastService } from '../../core/toast.service';
+
+interface XlsxRow {
+  name: string;
+  unit_code: string;
+  unit_price: string;
+  first_payment: string;
+  contract_date: string;
+  email: string;
+  id: string;
+  natonal: string;
+  phone: string;
+  area: string;
+  floor: string;
+  address: string;
+  error?: string;
+}
+
+@Component({
+  selector: 'app-payments-detail',
+  standalone: true,
+  imports: [CommonModule, FormsModule, IconComponent],
+  templateUrl: './payments-detail.component.html',
+})
+export class PaymentsDetailComponent implements OnInit, OnDestroy {
+  private supa = inject(SupabaseService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private toast = inject(ToastService);
+  private paramSub?: Subscription;
+  private querySub?: Subscription;
+  private realtimeChannel?: RealtimeChannel;
+  private highlightTimer?: ReturnType<typeof setTimeout>;
+
+  highlightId = signal<string | null>(null);
+
+  projectName = signal('');
+  contracts = signal<ContractWithPayments[]>([]);
+  loading = signal(true);
+
+  // sorted alphabetically by unit_code
+  sorted = computed(() =>
+    [...this.contracts()].sort((a, b) =>
+      (a.fields?.['unit_code'] ?? '').localeCompare(b.fields?.['unit_code'] ?? '', 'ar')
+    )
+  );
+
+  // ── Delete ──────────────────────────────────────────────────────────────────
+  deleteTargetId: string | null = null;
+  deleting = false;
+
+  confirmDelete(id: string) { this.deleteTargetId = id; }
+  cancelDelete() { this.deleteTargetId = null; }
+  async executeDelete() {
+    if (!this.deleteTargetId) return;
+    this.deleting = true;
+    const ok = await this.supa.deleteContract(this.deleteTargetId);
+    if (ok) this.contracts.update(list => list.filter(c => c.id !== this.deleteTargetId));
+    this.deleteTargetId = null;
+    this.deleting = false;
+  }
+
+  // ── Add Client ──────────────────────────────────────────────────────────────
+  addOpen = false;
+  addName = '';
+  addEmail = '';
+  addPhone = '';
+  addUnitCode = '';
+  addUnitPrice = '';
+  addFirstPaymentDate = '';
+  addSaving = false;
+
+  openAdd() {
+    this.addName = '';
+    this.addEmail = '';
+    this.addPhone = '';
+    this.addUnitCode = '';
+    this.addUnitPrice = '';
+    this.addFirstPaymentDate = '';
+    this.addOpen = true;
+  }
+  closeAdd() { this.addOpen = false; }
+
+  get addValid(): boolean {
+    return !!this.addName.trim() && !!this.addUnitPrice && !!this.addFirstPaymentDate;
+  }
+
+  async submitAdd() {
+    if (!this.addValid || this.addSaving) return;
+    this.addSaving = true;
+
+    const dup = await this.supa.checkDuplicate(
+      this.projectName(), this.addName.trim(), this.addUnitCode.trim()
+    );
+    if (dup) {
+      this.toast.error(
+        dup === 'name' ? 'العميل مسجّل مسبقاً في هذا المشروع' : 'رقم الوحدة مسجّل مسبقاً في هذا المشروع'
+      );
+      this.addSaving = false;
+      return;
+    }
+
+    const price = Number(this.addUnitPrice);
+    const PCTS = [0.20, 0.20, 0.20, 0.20, 0.15, 0.05];
+    const start = new Date(this.addFirstPaymentDate);
+
+    const installments = PCTS.map((pct, i) => {
+      const d = new Date(start);
+      d.setMonth(d.getMonth() + i * 3);
+      const amount = i < 5
+        ? Math.round(price * pct)
+        : price - PCTS.slice(0, 5).reduce((s, p) => s + Math.round(price * p), 0);
+      return { amount, dueDate: d.toISOString().split('T')[0] };
+    });
+
+    const result = await this.supa.saveContract({
+      projectName: this.projectName(),
+      clientName: this.addName.trim(),
+      unitPrice: price,
+      firstPayment: installments[0].amount,
+      contractDate: this.addFirstPaymentDate,
+      fields: { unit_code: this.addUnitCode.trim(), email: this.addEmail.trim(), phone: this.addPhone.trim() },
+      installments,
+    });
+
+    this.addSaving = false;
+
+    if ('error' in result) {
+      this.toast.error('خطأ في الحفظ', result.error);
+    } else {
+      // Reload contracts for this project
+      const all = await this.supa.loadContracts();
+      this.contracts.set(all.filter(c => c.project_name === this.projectName()));
+      this.toast.success('تمت الإضافة', this.addName.trim());
+      this.addOpen = false;
+    }
+  }
+
+  // ── Edit ────────────────────────────────────────────────────────────────────
+  editTarget: ContractWithPayments | null = null;
+  editName = '';
+  editEmail = '';
+  editPhone = '';
+  editUnitCode = '';
+  editContractDate = '';
+  saving = false;
+
+  openEdit(c: ContractWithPayments) {
+    this.editTarget = c;
+    this.editName = c.client_name;
+    this.editEmail = c.fields['email'] ?? '';
+    this.editPhone = c.fields['phone'] ?? '';
+    this.editUnitCode = c.fields['unit_code'] ?? '';
+    this.editContractDate = c.contract_date ?? '';
+  }
+  cancelEdit() { this.editTarget = null; }
+  async saveEdit() {
+    if (!this.editTarget) return;
+    this.saving = true;
+    const newFields = { ...(this.editTarget.fields ?? {}), unit_code: this.editUnitCode, email: this.editEmail.trim(), phone: this.editPhone.trim() };
+    const dateChanged = this.editContractDate && this.editContractDate !== this.editTarget.contract_date;
+
+    const [ok, updatedPayments] = await Promise.all([
+      this.supa.updateContract(this.editTarget.id, {
+        client_name: this.editName,
+        contract_date: this.editContractDate,
+        fields: newFields,
+      }),
+      dateChanged
+        ? this.supa.recalcPaymentDates(this.editTarget.payments, this.editContractDate)
+        : Promise.resolve(null),
+    ]);
+
+    if (ok) {
+      this.contracts.update(list => list.map(c =>
+        c.id !== this.editTarget!.id ? c : {
+          ...c,
+          client_name: this.editName,
+          contract_date: this.editContractDate,
+          fields: newFields,
+          payments: updatedPayments ?? c.payments,
+        }
+      ));
+      if (dateChanged) this.toast.success('تم التحديث', 'تم إعادة حساب تواريخ الدفعات');
+    }
+    this.editTarget = null;
+    this.saving = false;
+  }
+
+  // ── Excel bulk import ────────────────────────────────────────────────────────
+  @ViewChild('xlsxInput') xlsxInputRef!: ElementRef<HTMLInputElement>;
+  xlsxOpen = false;
+  xlsxRows: XlsxRow[] = [];
+  xlsxImporting = false;
+  remindingId = '';
+  xlsxStatus = '';
+
+  get xlsxValidCount() { return this.xlsxRows.filter(r => !r.error).length; }
+  get xlsxErrorCount() { return this.xlsxRows.filter(r => !!r.error).length; }
+
+  isDragging = false;
+
+  openXlsx() {
+    if (!this.projectName()) { this.toast.error('اختر مشروعاً أولاً'); return; }
+    this.xlsxRows = []; this.xlsxStatus = ''; this.xlsxOpen = true;
+  }
+  closeXlsx() { this.xlsxOpen = false; if (this.xlsxInputRef) this.xlsxInputRef.nativeElement.value = ''; }
+  triggerXlsxInput() { this.xlsxInputRef?.nativeElement.click(); }
+
+  onDragOver(e: DragEvent) { e.preventDefault(); e.stopPropagation(); this.isDragging = true; }
+  onDragLeave(e: DragEvent) { e.preventDefault(); e.stopPropagation(); this.isDragging = false; }
+  onDrop(e: DragEvent) {
+    e.preventDefault(); e.stopPropagation();
+    this.isDragging = false;
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    if (!file.name.match(/\.(xlsx|xls)$/i)) { this.toast.error('الملف غير مدعوم', 'يُرجى رفع ملف Excel بامتداد .xlsx أو .xls'); return; }
+    this.processXlsxFile(file);
+  }
+
+  downloadTemplate() {
+    const headers = ['name', 'unit_code', 'unit_price', 'first_payment', 'contract_date', 'email', 'phone', 'id', 'natonal', 'area', 'floor', 'address'];
+    const sample  = ['محمد عبدالله', '1-A', '400000', '80000', '18/06/2026', 'email@example.com', '0501234567', '1234567890', 'سعودي', '100', 'الأول', '1'];
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'العملاء');
+    XLSX.writeFile(wb, 'قالب_العملاء.xlsx');
+  }
+
+  private readonly PCTS = [0.20, 0.20, 0.20, 0.20, 0.15, 0.05];
+
+  private parseContractDate(raw: string): string | null {
+    if (!raw) return null;
+    // strip trailing timestamp (2026-06-18T00:00:00 → 2026-06-18)
+    const s = raw.split('T')[0].trim();
+    // YYYY-MM-DD exact
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // split on any separator including space
+    const parts = s.split(/[\/\-\.\s]+/);
+    if (parts.length === 3) {
+      const [a, b, c] = parts;
+      // YYYY/MM/DD
+      if (a.length === 4 && +a > 1900) {
+        const d = new Date(+a, +b - 1, +c);
+        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+      }
+      // DD/MM/YYYY
+      if (c.length === 4 && +c > 1900) {
+        const d = new Date(+c, +b - 1, +a);
+        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+      }
+      // DD/MM/YY → 20YY
+      if (c.length <= 2 && +c >= 0 && +c <= 99) {
+        const d = new Date(2000 + +c, +b - 1, +a);
+        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+      }
+      // YY/MM/DD → 20YY (e.g. 26/06/18)
+      if (a.length <= 2 && +a >= 0 && +a <= 99 && +c <= 31) {
+        const d = new Date(2000 + +a, +b - 1, +c);
+        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+      }
+    }
+    // Excel serial number
+    const serial = Number(raw);
+    if (!isNaN(serial) && serial > 1000 && serial < 100000) {
+      const d = new Date(Date.UTC(1899, 11, 30) + serial * 86400000);
+      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    }
+    return null;
+  }
+
+  handleXlsxFile(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    this.processXlsxFile(file);
+  }
+
+  processXlsxFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const wb = XLSX.read(new Uint8Array(ev.target!.result as ArrayBuffer), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+      const isCell = (c: any) => c !== null && c !== undefined && String(c).trim() !== '';
+      const hi = raw.findIndex(r => Array.isArray(r) && r.some(isCell));
+      if (hi === -1) { this.xlsxRows = []; return; }
+
+      // Normalize header: lowercase, trim, collapse any symbol/space to _
+      const normalizeKey = (s: string) =>
+        String(s).trim().toLowerCase()
+          .replace(/[\s\-\.\/\(\)\*\#\+،,]+/g, '_')
+          .replace(/_+/g, '_').replace(/^_|_$/g, '');
+
+      const cols = raw[hi].map((h: any) => normalizeKey(h));
+
+      // Aliases for column names (English + Arabic) — all get normalizeKey applied
+      const colAliases: Record<string, string[]> = {
+        name: [
+          'name', 'client_name', 'customer_name', 'full_name', 'fullname', 'client',
+          'اسم', 'الاسم', 'اسم_العميل', 'اسم_الزبون', 'اسم_المالك', 'اسم_المستأجر',
+          'العميل', 'الزبون', 'المستأجر', 'المشتري',
+        ],
+        unit_code: [
+          'unit_code', 'unitcode', 'unit_number', 'unit_no', 'unit', 'apt', 'apartment',
+          'كود_الوحدة', 'رقم_الوحدة', 'كود', 'الوحدة', 'رقم_الشقة', 'الشقة',
+          'رقم_الغرفة', 'رقم_العقار',
+        ],
+        unit_price: [
+          'unit_price', 'unitprice', 'price', 'total_price', 'total', 'contract_value', 'amount',
+          'سعر_الوحدة', 'السعر', 'سعر', 'القيمة', 'قيمة_العقد', 'المبلغ', 'اجمالي_السعر',
+          'إجمالي_السعر', 'ثمن_الوحدة',
+        ],
+        first_payment: [
+          'first_payment', 'firstpayment', 'fp', 'down_payment', 'downpayment',
+          'advance', 'deposit', 'initial_payment',
+          'الدفعة_الاولى', 'الدفعة_الأولى', 'دفعة_اولى', 'دفعة_أولى',
+          'المقدم', 'العربون', 'دفعة_مقدمة',
+        ],
+        contract_date: [
+          'contract_date', 'contractdate', 'date', 'signing_date', 'start_date', 'agreement_date',
+          'تاريخ_العقد', 'تاريخ', 'التاريخ', 'تاريخ_التعاقد', 'تاريخ_الاتفاقية',
+          'تاريخ_التوقيع', 'تاريخ_البدء',
+        ],
+        email: [
+          'email', 'mail', 'e_mail', 'e-mail', 'client_email', 'customer_email',
+          'الايميل', 'الإيميل', 'البريد', 'البريد_الالكتروني', 'البريد_الإلكتروني',
+          'ايميل', 'إيميل', 'بريد',
+        ],
+        phone: [
+          'phone', 'mobile', 'tel', 'telephone', 'cell', 'phone_number', 'mobile_number',
+          'phonenumber', 'mobilenumber',
+          'الجوال', 'الهاتف', 'رقم_الجوال', 'رقم_الهاتف', 'جوال', 'هاتف',
+          'موبايل', 'رقم_الموبايل', 'رقم_التليفون', 'تليفون',
+        ],
+        id: [
+          'id', 'national_id', 'nationalid', 'id_number', 'identity_number',
+          'iqama', 'iqama_number', 'residence_id',
+          'رقم_الهوية', 'الهوية', 'هوية', 'رقم_الاقامة', 'رقم_الإقامة',
+          'اقامة', 'إقامة', 'هوية_وطنية', 'الرقم_الوطني',
+        ],
+        natonal: [
+          'natonal', 'national', 'nationality', 'nation', 'country',
+          'الجنسية', 'جنسية', 'البلد', 'بلد',
+        ],
+        area: [
+          'area', 'size', 'sqm', 'square_meters', 'area_m2',
+          'المساحة', 'المساحه', 'مساحة', 'مساحه', 'متر', 'مساحة_الوحدة',
+        ],
+        floor: [
+          'floor', 'level', 'story', 'storey', 'floor_number',
+          'الدور', 'دور', 'طابق', 'الطابق', 'رقم_الدور',
+        ],
+        address: [
+          'address', 'addr', 'location', 'district', 'neighborhood',
+          'العنوان', 'عنوان', 'الموقع', 'موقع', 'الحي', 'حي', 'رقم_المبنى',
+        ],
+      };
+
+      const findCol = (key: string): number => {
+        for (const alias of colAliases[key] ?? [key]) {
+          const idx = cols.indexOf(normalizeKey(alias));
+          if (idx !== -1) return idx;
+        }
+        return -1;
+      };
+
+      // Normalize Arabic-Indic numerals to Western
+      const toWestern = (s: string) =>
+        s.replace(/[٠١٢٣٤٥٦٧٨٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+
+      const getStr = (r: any[], key: string): string => {
+        const idx = findCol(key);
+        if (idx === -1) return '';
+        const val = r[idx];
+        if (val === null || val === undefined) return '';
+        return toWestern(String(val)).trim();
+      };
+
+      this.xlsxRows = raw.slice(hi + 1)
+        .filter(r => Array.isArray(r) && r.some(isCell))
+        .map(r => {
+          const row: XlsxRow = {
+            name:          getStr(r, 'name'),
+            unit_code:     getStr(r, 'unit_code'),
+            unit_price:    getStr(r, 'unit_price'),
+            first_payment: getStr(r, 'first_payment'),
+            contract_date: getStr(r, 'contract_date').replace(/^[_\-]+$/, ''),
+            email:         getStr(r, 'email'),
+            id:            getStr(r, 'id'),
+            natonal:       getStr(r, 'natonal'),
+            phone:         getStr(r, 'phone').replace(/^pdi\s*/i, '').trim(),
+            area:          getStr(r, 'area'),
+            floor:         getStr(r, 'floor'),
+            address:       getStr(r, 'address'),
+          };
+          // تخطّي فقط لو مفيش اسم
+          if (!row.name) {
+            row.error = 'صف ناقص — سيُتخطّى';
+            return row;
+          }
+          if (row.contract_date) {
+            const parsedDate = this.parseContractDate(row.contract_date);
+            if (!parsedDate) row.error = `تاريخ غير صحيح: "${row.contract_date}"`;
+            else row.contract_date = parsedDate;
+          }
+          return row;
+        });
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  async submitXlsx() {
+    if (!this.projectName()) { this.toast.error('اختر مشروعاً أولاً'); return; }
+    const validRows = this.xlsxRows.filter(r => !r.error);
+    if (!validRows.length || this.xlsxImporting) return;
+    this.xlsxImporting = true;
+    let added = 0, skipped = 0;
+
+    let updated = 0;
+    for (let i = 0; i < validRows.length; i++) {
+      const row = validRows[i];
+      this.xlsxStatus = `${i + 1} / ${validRows.length} — ${row.name}`;
+
+      const newFields = {
+        unit_code: row.unit_code,
+        email:     row.email,
+        id:        row.id,
+        natonal:   row.natonal,
+        phone:     row.phone,
+        area:      row.area,
+        floor:     row.floor,
+        address:   row.address,
+      };
+
+      const dup = await this.supa.checkDuplicate(this.projectName(), row.name, row.unit_code);
+      if (dup === 'unit') {
+        const ok = await this.supa.updateContractByUnitCode(
+          this.projectName(), row.unit_code, { client_name: row.name, fields: newFields }
+        );
+        if (ok) updated++; else skipped++;
+        continue;
+      }
+      if (dup === 'name') {
+        const ok = await this.supa.updateContractByName(
+          this.projectName(), row.name, { client_name: row.name, fields: newFields }
+        );
+        if (ok) updated++; else skipped++;
+        continue;
+      }
+
+      const price = row.unit_price ? Number(row.unit_price.replace(/,/g, '')) : 0;
+      const fp = row.first_payment ? Number(row.first_payment.replace(/,/g, '')) : Math.round(price * this.PCTS[0]);
+      const dateStr = row.contract_date || new Date().toISOString().split('T')[0];
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const installments = this.PCTS.map((pct, idx) => {
+        const dt = new Date(y, m - 1 + idx * 3, d);
+        const amount = idx === 0 ? fp
+          : idx < 5 ? Math.round(price * pct)
+          : price - fp - this.PCTS.slice(1, 5).reduce((s, p) => s + Math.round(price * p), 0);
+        return { amount, dueDate: dt.toISOString().split('T')[0] };
+      });
+
+      const result = await this.supa.saveContract({
+        projectName: this.projectName(),
+        clientName: row.name,
+        unitPrice: price,
+        firstPayment: fp,
+        contractDate: dateStr,
+        fields: newFields,
+        installments,
+      });
+      if (!('error' in result)) added++;
+      else skipped++;
+    }
+
+    const all = await this.supa.loadContracts();
+    this.contracts.set(all.filter(c => c.project_name === this.projectName()));
+    this.xlsxImporting = false;
+    this.xlsxOpen = false;
+
+    const parts = [];
+    if (added)   parts.push(`أضيف ${added}`);
+    if (updated) parts.push(`حُدِّث ${updated}`);
+    if (skipped) parts.push(`تخطّي ${skipped}`);
+    this.toast.success('تم الاستيراد', parts.join(' · '));
+  }
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  ngOnInit() {
+    this.paramSub = this.route.paramMap.subscribe(async params => {
+      const name = decodeURIComponent(params.get('project') ?? '');
+      this.projectName.set(name);
+      this.loading.set(true);
+      await this.reloadContracts();
+      this.loading.set(false);
+      const hid = this.route.snapshot.queryParamMap.get('highlight');
+      if (hid) this.applyHighlight(hid);
+      this.subscribeRealtime();
+    });
+
+    this.querySub = this.route.queryParamMap.subscribe(qp => {
+      if (this.loading()) return;
+      const hid = qp.get('highlight');
+      if (hid) this.applyHighlight(hid);
+    });
+  }
+
+  ngOnDestroy() {
+    this.paramSub?.unsubscribe();
+    this.querySub?.unsubscribe();
+    this.realtimeChannel?.unsubscribe();
+    clearTimeout(this.highlightTimer);
+  }
+
+  private async reloadContracts() {
+    const all = await this.supa.loadContracts();
+    this.contracts.set(all.filter(c => c.project_name === this.projectName()));
+  }
+
+  private subscribeRealtime() {
+    this.realtimeChannel?.unsubscribe();
+    this.realtimeChannel = this.supa.getClient()
+      .channel('detail-payments-' + this.projectName())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'payments' }, () => {
+        this.reloadContracts();
+      })
+      .subscribe();
+  }
+
+  private applyHighlight(id: string) {
+    clearTimeout(this.highlightTimer);
+    this.highlightId.set(id);
+    setTimeout(() => {
+      document.getElementById('client-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+    this.highlightTimer = setTimeout(() => this.highlightId.set(null), 3000);
+  }
+
+  back() { this.router.navigate(['/payments']); }
+
+  // ── Send reminders ───────────────────────────────────────────────────────────
+  sendingReminders = false;
+
+  async sendReminders() {
+    if (this.sendingReminders) return;
+    this.sendingReminders = true;
+    try {
+      const res = await fetch(
+        `https://efwfihirfxwncerdsemi.supabase.co/functions/v1/send-project-reminders`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_name: this.projectName() }),
+        }
+      );
+      const { sent, skipped } = await res.json();
+      await this.reloadContracts();
+      if (sent > 0) {
+        this.toast.success(`تم الإرسال لـ ${sent} عميل`, skipped ? `تخطّي ${skipped} (بدون إيميل)` : '');
+      } else {
+        this.toast.info('لم يُرسَل أي إيميل', 'تأكد من إضافة الإيميل لعملاء المشروع');
+      }
+    } catch {
+      this.toast.error('خطأ في الإرسال', 'حاول مرة أخرى');
+    }
+    this.sendingReminders = false;
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  paidCount(c: ContractWithPayments): number { return c.payments.filter(p => p.paid).length; }
+  progressWidth(c: ContractWithPayments): string { return `${(this.paidCount(c) / c.payments.length) * 100}%`; }
+  remaining(c: ContractWithPayments): number {
+    return c.unit_price - c.payments.filter(p => p.paid).reduce((s, p) => s + p.amount, 0);
+  }
+  isOverdue(p: PaymentRow): boolean { return !p.paid && new Date(p.due_date) < new Date(); }
+  isDueSoon(p: PaymentRow): boolean {
+    if (p.paid) return false;
+    const diff = (new Date(p.due_date).getTime() - Date.now()) / 86400000;
+    return diff >= 0 && diff <= 10;
+  }
+  canRemind(p: PaymentRow): boolean {
+    if (p.paid) return false;
+    const diff = (new Date(p.due_date).getTime() - Date.now()) / 86400000;
+    return diff <= 20;
+  }
+  fmt(n: number): string { return n.toLocaleString('en-US'); }
+  clientEmail(c: ContractWithPayments): string {
+    const f = c.fields ?? {};
+    return f['email'] || f['mail'] || f['الايميل'] || f['البريد'] || f['البريد_الالكتروني'] || f['client_email'] || '';
+  }
+
+  clientPhone(c: ContractWithPayments): string {
+    const f = c.fields ?? {};
+    return (f['phone'] || f['mobile'] || '').replace(/[\s\-\(\)]/g, '');
+  }
+
+  openWhatsApp(c: ContractWithPayments): void {
+    let phone = this.clientPhone(c);
+    if (!phone) return;
+    if (phone.startsWith('00')) phone = phone.slice(2);
+    if (phone.startsWith('+')) phone = phone.slice(1);
+    if (phone.startsWith('05')) phone = '966' + phone.slice(1);
+    else if (/^5\d{8}$/.test(phone)) phone = '966' + phone;
+    else if (!phone.startsWith('966')) phone = '966' + phone;
+
+    const now = new Date();
+    const targetPayment =
+      c.payments.find(p => !p.paid && new Date(p.due_date) < now) ??
+      c.payments.find(p => !p.paid);
+
+    const unitCode = c.fields?.['unit_code'] ?? '';
+    const paymentLabel = targetPayment?.label ?? '';
+    const dueDate = targetPayment ? this.formatDate(targetPayment.due_date) : '';
+    const diffDays = targetPayment
+      ? Math.round((new Date(targetPayment.due_date).getTime() - now.getTime()) / 86400000)
+      : null;
+    const daysNote = diffDays === null ? '' :
+      diffDays < 0 ? ` (مستحقة منذ ${Math.abs(diffDays)} يوم)` :
+      diffDays === 0 ? ' (موعدها اليوم)' :
+      ` (باقي ${diffDays} يوم)`;
+
+    const nameParts = c.client_name.trim().split(/\s+/);
+    const firstName = nameParts.length > 1
+      ? `${nameParts[0]} ${nameParts[nameParts.length - 1]}`
+      : nameParts[0];
+
+    const msg =
+`السلام عليكم ورحمة الله وبركاته 🌹
+
+أ/ ${firstName}
+
+معك عبدالرحمن أمين من شركة مدائن العقارية.
+
+حبيت أذكركم بأنه تم إرسال إشعار على بريدكم الإلكتروني بخصوص ${paymentLabel}${dueDate ? ' التي بتاريخ ' + dueDate + daysNote : ''} الخاصة بالوحدة رقم ${unitCode} في ${this.projectName()}.
+
+إذا تكرمت، نأمل الاطلاع على البريد وإكمال الإجراءات في الوقت المناسب. وإذا كان السداد تم بالفعل، فتجاهل الرسالة مع جزيل الشكر.
+
+وإذا احتجت أي مساعدة أو كان عندك أي استفسار، أنا حاضر في أي وقت.`;
+
+    window.location.href = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(msg)}`;
+  }
+  async sendEarlyReminder(p: PaymentRow, c: ContractWithPayments) {
+    if (this.remindingId || p.reminder_count >= 2) return;
+    this.remindingId = p.id;
+    const res = await this.supa.sendEarlyReminder(p.id, this.projectName());
+    this.remindingId = '';
+    if (res.sent) {
+      p.last_reminded_at = new Date().toISOString();
+      p.reminder_count = res.reminder_count ?? (p.reminder_count + 1);
+      this.toast.success('تم إرسال التذكير', `${c.client_name} · ${p.reminder_count}/2`);
+    } else if (res.limit_reached) {
+      this.toast.error('وصل الحد الأقصى للتذكيرات (2/2)');
+    } else {
+      this.toast.error(res.error?.includes('إيميل') ? 'لا يوجد إيميل للعميل' : 'فشل إرسال التذكير');
+    }
+  }
+
+  formatDate(iso: string): string {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  async toggle(p: PaymentRow, c: ContractWithPayments) {
+    const ok = await this.supa.togglePayment(p.id, p.paid);
+    if (ok) {
+      const nowPaid = !p.paid;
+      this.contracts.update(list =>
+        list.map(contract => contract.id !== c.id ? contract : {
+          ...contract,
+          payments: contract.payments.map(pay =>
+            pay.id !== p.id ? pay : { ...pay, paid: nowPaid, paid_at: nowPaid ? new Date().toISOString() : null }
+          ),
+        })
+      );
+      if (nowPaid) {
+        this.toast.success('تم تسجيل الدفعة', `${p.label} — ${c.client_name}`);
+      } else {
+        this.toast.info('تم إلغاء الدفعة', `${p.label} — ${c.client_name}`);
+      }
+    } else {
+      this.toast.error('حدث خطأ', 'لم يتم حفظ التغيير، حاول مرة أخرى');
+    }
+  }
+}
