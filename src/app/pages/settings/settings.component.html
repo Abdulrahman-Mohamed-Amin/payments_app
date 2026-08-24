@@ -41,16 +41,30 @@
     </div>
 
     <!-- Notification email -->
-    <div class="mb-5 rounded-xl border border-brand-100 bg-brand-50 p-4">
-      <label class="block">
-        <span class="text-xs font-semibold text-brand-700 flex items-center gap-1.5 mb-1.5">
+    <div class="mb-5 rounded-xl border p-4 transition"
+         [class.border-brand-100]="dailyEmailEnabled"
+         [class.bg-brand-50]="dailyEmailEnabled"
+         [class.border-line]="!dailyEmailEnabled"
+         [class.bg-canvas]="!dailyEmailEnabled">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs font-semibold flex items-center gap-1.5"
+              [class.text-brand-700]="dailyEmailEnabled"
+              [class.text-ink-muted]="!dailyEmailEnabled">
           <app-icon name="bell" cls="h-3.5 w-3.5" />
-          إيميل استلام الإشعارات اليومية
+          التنبيه اليومي بالإيميل
         </span>
+        <label class="cursor-pointer">
+          <input type="checkbox" [(ngModel)]="dailyEmailEnabled" class="peer sr-only" />
+          <span class="relative inline-flex h-6 w-11 rounded-full bg-line transition peer-checked:bg-brand after:absolute after:top-0.5 after:right-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:-translate-x-5"></span>
+        </label>
+      </div>
+      @if (dailyEmailEnabled) {
         <input [(ngModel)]="notificationEmail" type="email" dir="ltr" placeholder="example@email.com"
           class="w-full rounded-xl border border-brand-200 bg-white px-3 py-2.5 text-sm text-left focus:outline-none focus:border-brand transition" />
-        <p class="text-[11px] text-brand-700 mt-1.5">يُبعَت إيميل يومياً الساعة 11 ص (توقيت الرياض) يحتوي على كل الدفعات المتأخرة</p>
-      </label>
+        <p class="text-[11px] text-brand-700 mt-1.5">يُبعَت إيميل يومياً الساعة 11 ص (توقيت الرياض) يحتوي على كل الدفعات المستحقة</p>
+      } @else {
+        <p class="text-[11px] text-ink-faint">التنبيه اليومي مُعطَّل — لن يُرسَل أي إيميل تلقائي</p>
+      }
     </div>
 
     <div class="divide-y divide-line">

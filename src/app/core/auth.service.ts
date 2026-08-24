@@ -38,6 +38,15 @@ export class AuthService {
 
   get currentUser() { return this._session()?.user ?? null; }
 
+  /** false only when explicitly revoked via app_metadata; defaults to true */
+  get canManagePayments(): boolean {
+    return this.currentUser?.app_metadata?.['payments_manage'] !== false;
+  }
+
+  get displayName(): string {
+    return this.currentUser?.user_metadata?.['name'] ?? '';
+  }
+
   async updateProfile(data: Record<string, unknown>): Promise<string | null> {
     const { error } = await this.supa.getClient().auth.updateUser({ data });
     return error ? error.message : null;

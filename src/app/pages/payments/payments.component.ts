@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { IconComponent } from '../../core/icon/icon.component';
 import { SupabaseService, ContractWithPayments } from '../../core/supabase.service';
 import { ToastService } from '../../core/toast.service';
+import { AuthService } from '../../core/auth.service';
 
 export interface InstallmentSummary {
   number: number;
@@ -33,6 +34,7 @@ export class PaymentsComponent implements OnInit {
   private supa = inject(SupabaseService);
   private router = inject(Router);
   private toast = inject(ToastService);
+  readonly auth = inject(AuthService);
 
   private _projectsList = signal<{ id: string; name: string }[]>([]);
   private _contracts = signal<ContractWithPayments[]>([]);
@@ -94,11 +96,12 @@ export class PaymentsComponent implements OnInit {
 
   confirmDeleteProject(e: Event, proj: ProjectSummary) {
     e.stopPropagation();
+    if (!this.auth.canManagePayments) return;
     this.deleteTarget = proj;
   }
   cancelDeleteProject() { this.deleteTarget = null; }
   async executeDeleteProject() {
-    if (!this.deleteTarget || this.deleting) return;
+    if (!this.deleteTarget || this.deleting || !this.auth.canManagePayments) return;
     this.deleting = true;
     const ok = await this.supa.deleteProject(this.deleteTarget.id);
     if (ok) {
@@ -118,6 +121,7 @@ export class PaymentsComponent implements OnInit {
 
   confirmRenameProject(e: Event, proj: ProjectSummary) {
     e.stopPropagation();
+    if (!this.auth.canManagePayments) return;
     this.renameTarget = proj;
     this.renameName = proj.name;
   }
@@ -125,7 +129,7 @@ export class PaymentsComponent implements OnInit {
   async executeRenameProject() {
     const target = this.renameTarget;
     const newName = this.renameName.trim();
-    if (!target || !newName || newName === target.name || this.renameSaving) return;
+    if (!target || !newName || newName === target.name || this.renameSaving || !this.auth.canManagePayments) return;
     this.renameSaving = true;
     const ok = await this.supa.renameProject(target.name, newName);
     if (ok) {
@@ -145,12 +149,16 @@ export class PaymentsComponent implements OnInit {
   addName = '';
   addSaving = false;
 
-  openAdd() { this.addName = ''; this.addOpen = true; }
+  openAdd() {
+    if (!this.auth.canManagePayments) return;
+    this.addName = '';
+    this.addOpen = true;
+  }
   closeAdd() { this.addOpen = false; }
 
   async submitAdd() {
     const name = this.addName.trim();
-    if (!name || this.addSaving) return;
+    if (!name || this.addSaving || !this.auth.canManagePayments) return;
     this.addSaving = true;
     const ok = await this.supa.saveProject(name);
     this.addSaving = false;

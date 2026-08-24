@@ -176,9 +176,13 @@ export class GenerateComponent implements OnInit {
       const [y, m, d] = val.split('-').map(Number);
       return this.safeDate(y, m, d);
     }
-    if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(val)) {
-      const p = val.split(/[\/\-]/).map(Number);
-      return this.safeDate(p[2], p[1], p[0]);
+    if (/^\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}$/.test(val)) {
+      const parts = val.split(/[\/\-.]/);
+      const a = Number(parts[0]), b = Number(parts[1]);
+      // سنة من رقمين (مثل 26) تُفهم كـ 2026
+      const y = parts[2].length <= 2 ? 2000 + Number(parts[2]) : Number(parts[2]);
+      // نفترض يوم/شهر/سنة (الشائع محلياً)، وإن كان غير صالح نجرّب شهر/يوم/سنة
+      return this.safeDate(y, b, a) || this.safeDate(y, a, b);
     }
     // Excel date serial (e.g. 45292)
     if (/^\d{5}$/.test(val)) {
@@ -186,6 +190,27 @@ export class GenerateComponent implements OnInit {
       return isNaN(d.getTime()) ? null : d;
     }
     return null;
+  }
+
+  /** يطبّع مفتاحاً (اسم عمود) للمقارنة بلا حساسية لحالة الأحرف أو المسافات/الشرطات السفلية
+   *  أو الأحرف غير المرئية (علامات اتجاه، مسافات غير فاصلة) الشائعة في ملفات إكسل العربية */
+  private normKey(s: string): string {
+    return s
+      .replace(/[\u200B-\u200F\u202A-\u202E\u2060\uFEFF\u00A0]/g, '')
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_\-]+/g, '');
+  }
+
+  /** يبحث عن قيمة صف بمطابقة متسامحة عبر عدّة أسماء أعمدة محتملة (بدائل عربية/إنجليزية) */
+  private pickRow(row: Record<string, string>, aliases: string[]): string {
+    const normalized = new Map<string, string>();
+    for (const k of Object.keys(row)) normalized.set(this.normKey(k), row[k]);
+    for (const a of aliases) {
+      const v = normalized.get(this.normKey(a));
+      if (v !== undefined && v.trim() !== '') return v.trim();
+    }
+    return '';
   }
 
   private safeDate(y: number, m: number, d: number): Date | null {
@@ -421,10 +446,16 @@ export class GenerateComponent implements OnInit {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const wb = XLSX.read(new Uint8Array(e.target!.result as ArrayBuffer), { type: 'array' });
+          const wb = XLSX.read(new Uint8Array(e.target!.result as ArrayBuffer), { type: 'array', cellDates: true });
           const ws = wb.Sheets[wb.SheetNames[0]];
-          const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
-          const hi = raw.findIndex(r => r.some((c: any) => String(c).trim() !== ''));
+          const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false, dateNF: 'yyyy-mm-dd' });
+          // نبحث عن صف العناوين ضمن أول 15 صفاً بأخذ الصف الأكثر امتلاءً بالخلايا
+          // (وليس أول صف غير فارغ فقط) لتفادي التقاط صف عنوان/شعار قبل صف العناوين الحقيقي
+          let hi = -1, bestCount = 0;
+          for (let r = 0; r < Math.min(raw.length, 15); r++) {
+            const count = raw[r].filter((c: any) => String(c).trim() !== '').length;
+            if (count > bestCount) { bestCount = count; hi = r; }
+          }
           if (hi === -1) { resolve({ rows: [], cols: [] }); return; }
           const cols = raw[hi].map((h: any) => String(h).trim());
           const rows: any[] = [];
@@ -479,22 +510,27 @@ export class GenerateComponent implements OnInit {
       const projectName = this.selectedProject;
 
       let skippedIncomplete = 0;
+      const missCounts = { name: 0, unit_price: 0, contract_date: 0 };
       for (let i = 0; i < total; i++) {
         const row = this.cExcelRows[i];
-        const up = parseFloat(String(row['unit_price'] || '0').replace(/,/g, '')) || 0;
-        const fp = parseFloat(String(row['first_payment'] || '0').replace(/,/g, '')) || 0;
-        const bd = this.parseAnyDate(String(row['contract_date'] || ''));
+        const up = parseFloat(this.pickRow(row, ['unit_price', 'السعر', 'سعر الوحدة', 'قيمة العقد', 'price']).replace(/,/g, '')) || 0;
+        const fp = parseFloat(this.pickRow(row, ['first_payment', 'الدفعة الأولى', 'دفعة أولى', 'دفعة مقدمة']).replace(/,/g, '')) || 0;
+        const bd = this.parseAnyDate(this.pickRow(row, ['contract_date', 'تاريخ العقد', 'التاريخ', 'تاريخ']));
         const dynamic: Record<string, string> = {};
-        this.cDynamicFields.forEach(f => { dynamic[f.varName] = row[f.varName] !== undefined ? String(row[f.varName]).trim() : ''; });
+        this.cDynamicFields.forEach(f => { dynamic[f.varName] = this.pickRow(row, [f.varName]); });
 
         // ── تخطّي الصفوف الناقصة (اسم + سعر + تاريخ فقط) ──────────────────
-        const clientName = String(row['name'] || dynamic['name'] || '').trim();
+        const clientName = dynamic['name'] || this.pickRow(row, ['name', 'اسم العميل', 'الاسم', 'client_name']);
         if (!up || !bd || !clientName) {
           skippedIncomplete++;
-          const miss = [!clientName && 'name', !up && 'unit_price', !bd && 'contract_date'].filter(Boolean).join('، ');
+          if (!clientName) missCounts.name++;
+          if (!up) missCounts.unit_price++;
+          if (!bd) missCounts.contract_date++;
+          const miss = [!clientName && 'الاسم', !up && 'السعر', !bd && 'التاريخ'].filter(Boolean).join('، ');
           this.cBulkStatus = `صف ${i + 1}/${total} — تخطّي (ناقص: ${miss})`;
           continue;
         }
+        dynamic['name'] = clientName;
 
         const reserved = this.computeReserved(up, fp, bd);
         const data = this.normalizeFields({ ...row, ...dynamic, ...reserved });
@@ -554,7 +590,7 @@ export class GenerateComponent implements OnInit {
       this.downloadBlob(zipBlob, fname);
       const processed = total - skippedIncomplete;
       this.cBulkStatus = skippedIncomplete > 0
-        ? `✓ ${processed} عميل تم تنزيله — تخطّي ${skippedIncomplete} (بيانات ناقصة)`
+        ? `✓ ${processed} عميل تم تنزيله — تخطّي ${skippedIncomplete} (الاسم مفقود: ${missCounts.name}، السعر مفقود: ${missCounts.unit_price}، التاريخ مفقود: ${missCounts.contract_date})`
         : `✓ ${total} عميل — تم التنزيل`;
       setTimeout(() => { this.cBulkStatus = ''; }, 5000);
     } catch (err: any) {

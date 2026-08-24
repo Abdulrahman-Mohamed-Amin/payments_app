@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 import { IconComponent } from '../../core/icon/icon.component';
 import { SupabaseService, ContractWithPayments, PaymentRow } from '../../core/supabase.service';
 import { ToastService } from '../../core/toast.service';
+import { AuthService } from '../../core/auth.service';
 
 interface XlsxRow {
   name: string;
@@ -22,6 +23,10 @@ interface XlsxRow {
   area: string;
   floor: string;
   address: string;
+  /** per-installment paid flag, index 0 = installment 1 ... index 5 = installment 6 */
+  paid: boolean[];
+  /** whether the file actually included any of the دفعة_1..دفعة_6 columns for this row */
+  paidProvided: boolean;
   error?: string;
 }
 
@@ -36,6 +41,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private toast = inject(ToastService);
+  readonly auth = inject(AuthService);
   private paramSub?: Subscription;
   private querySub?: Subscription;
   private realtimeChannel?: RealtimeChannel;
@@ -58,10 +64,13 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   deleteTargetId: string | null = null;
   deleting = false;
 
-  confirmDelete(id: string) { this.deleteTargetId = id; }
+  confirmDelete(id: string) {
+    if (!this.auth.canManagePayments) return;
+    this.deleteTargetId = id;
+  }
   cancelDelete() { this.deleteTargetId = null; }
   async executeDelete() {
-    if (!this.deleteTargetId) return;
+    if (!this.deleteTargetId || !this.auth.canManagePayments) return;
     this.deleting = true;
     const ok = await this.supa.deleteContract(this.deleteTargetId);
     if (ok) this.contracts.update(list => list.filter(c => c.id !== this.deleteTargetId));
@@ -80,6 +89,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   addSaving = false;
 
   openAdd() {
+    if (!this.auth.canManagePayments) return;
     this.addName = '';
     this.addEmail = '';
     this.addPhone = '';
@@ -95,7 +105,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   }
 
   async submitAdd() {
-    if (!this.addValid || this.addSaving) return;
+    if (!this.addValid || this.addSaving || !this.auth.canManagePayments) return;
     this.addSaving = true;
 
     const dup = await this.supa.checkDuplicate(
@@ -155,6 +165,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   saving = false;
 
   openEdit(c: ContractWithPayments) {
+    if (!this.auth.canManagePayments) return;
     this.editTarget = c;
     this.editName = c.client_name;
     this.editEmail = c.fields['email'] ?? '';
@@ -164,7 +175,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   }
   cancelEdit() { this.editTarget = null; }
   async saveEdit() {
-    if (!this.editTarget) return;
+    if (!this.editTarget || !this.auth.canManagePayments) return;
     this.saving = true;
     const newFields = { ...(this.editTarget.fields ?? {}), unit_code: this.editUnitCode, email: this.editEmail.trim(), phone: this.editPhone.trim() };
     const dateChanged = this.editContractDate && this.editContractDate !== this.editTarget.contract_date;
@@ -206,12 +217,14 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
 
   get xlsxValidCount() { return this.xlsxRows.filter(r => !r.error).length; }
   get xlsxErrorCount() { return this.xlsxRows.filter(r => !!r.error).length; }
+  getPaidCount(r: XlsxRow): number { return r.paid.filter(Boolean).length; }
 
   isDragging = false;
 
   openXlsx() {
+    if (!this.auth.canManagePayments) return;
     if (!this.projectName()) { this.toast.error('اختر مشروعاً أولاً'); return; }
-    this.xlsxRows = []; this.xlsxStatus = ''; this.xlsxOpen = true;
+    this.xlsxRows = []; this.xlsxStatus = ''; this.xlsxOpen = true; this.xlsxSkippedDetails = [];
   }
   closeXlsx() { this.xlsxOpen = false; if (this.xlsxInputRef) this.xlsxInputRef.nativeElement.value = ''; }
   triggerXlsxInput() { this.xlsxInputRef?.nativeElement.click(); }
@@ -228,8 +241,8 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   }
 
   downloadTemplate() {
-    const headers = ['name', 'unit_code', 'unit_price', 'first_payment', 'contract_date', 'email', 'phone', 'id', 'natonal', 'area', 'floor', 'address'];
-    const sample  = ['محمد عبدالله', '1-A', '400000', '80000', '18/06/2026', 'email@example.com', '0501234567', '1234567890', 'سعودي', '100', 'الأول', '1'];
+    const headers = ['name', 'unit_code', 'unit_price', 'first_payment', 'contract_date', 'email', 'phone', 'id', 'natonal', 'area', 'floor', 'address', 'دفعة_1', 'دفعة_2', 'دفعة_3', 'دفعة_4', 'دفعة_5', 'دفعة_6'];
+    const sample  = ['محمد عبدالله', '1-A', '400000', '80000', '18/06/2026', 'email@example.com', '0501234567', '1234567890', 'سعودي', '100', 'الأول', '1', 'نعم', 'نعم', 'لا', 'لا', 'لا', 'لا'];
     const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'العملاء');
@@ -237,6 +250,13 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   }
 
   private readonly PCTS = [0.20, 0.20, 0.20, 0.20, 0.15, 0.05];
+
+  /** Formats a locally-constructed Date as YYYY-MM-DD using its local getters.
+   *  Never use .toISOString() for this — it converts to UTC first, which silently
+   *  shifts the date back a day in any positive-UTC-offset timezone (e.g. Riyadh, UTC+3). */
+  private toDateStr(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
 
   private parseContractDate(raw: string): string | null {
     if (!raw) return null;
@@ -251,22 +271,22 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
       // YYYY/MM/DD
       if (a.length === 4 && +a > 1900) {
         const d = new Date(+a, +b - 1, +c);
-        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+        if (!isNaN(d.getTime())) return this.toDateStr(d);
       }
       // DD/MM/YYYY
       if (c.length === 4 && +c > 1900) {
         const d = new Date(+c, +b - 1, +a);
-        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+        if (!isNaN(d.getTime())) return this.toDateStr(d);
       }
       // DD/MM/YY → 20YY
       if (c.length <= 2 && +c >= 0 && +c <= 99) {
         const d = new Date(2000 + +c, +b - 1, +a);
-        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+        if (!isNaN(d.getTime())) return this.toDateStr(d);
       }
       // YY/MM/DD → 20YY (e.g. 26/06/18)
       if (a.length <= 2 && +a >= 0 && +a <= 99 && +c <= 31) {
         const d = new Date(2000 + +a, +b - 1, +c);
-        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+        if (!isNaN(d.getTime())) return this.toDateStr(d);
       }
     }
     // Excel serial number
@@ -363,6 +383,12 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
           'address', 'addr', 'location', 'district', 'neighborhood',
           'العنوان', 'عنوان', 'الموقع', 'موقع', 'الحي', 'حي', 'رقم_المبنى',
         ],
+        paid_1: ['دفعة_1', 'دفعة1', 'الدفعة_1', 'دفعة_١', 'paid_1', 'installment_1', 'payment_1'],
+        paid_2: ['دفعة_2', 'دفعة2', 'الدفعة_2', 'دفعة_٢', 'paid_2', 'installment_2', 'payment_2'],
+        paid_3: ['دفعة_3', 'دفعة3', 'الدفعة_3', 'دفعة_٣', 'paid_3', 'installment_3', 'payment_3'],
+        paid_4: ['دفعة_4', 'دفعة4', 'الدفعة_4', 'دفعة_٤', 'paid_4', 'installment_4', 'payment_4'],
+        paid_5: ['دفعة_5', 'دفعة5', 'الدفعة_5', 'دفعة_٥', 'paid_5', 'installment_5', 'payment_5'],
+        paid_6: ['دفعة_6', 'دفعة6', 'الدفعة_6', 'دفعة_٦', 'paid_6', 'installment_6', 'payment_6'],
       };
 
       const findCol = (key: string): number => {
@@ -385,9 +411,20 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
         return toWestern(String(val)).trim();
       };
 
+      const TRUE_VALUES = ['نعم', 'ايوه', 'ايوة', 'صح', 'مدفوع', 'مدفوعة', 'تم', 'yes', 'y', 'true', '1', '✓', 'paid'];
+      const isPaidCol = (r: any[], key: string): { has: boolean; paid: boolean } => {
+        const idx = findCol(key);
+        if (idx === -1) return { has: false, paid: false };
+        const raw = r[idx];
+        if (raw === null || raw === undefined || String(raw).trim() === '') return { has: false, paid: false };
+        const v = toWestern(String(raw)).trim().toLowerCase();
+        return { has: true, paid: TRUE_VALUES.includes(v) };
+      };
+
       this.xlsxRows = raw.slice(hi + 1)
         .filter(r => Array.isArray(r) && r.some(isCell))
         .map(r => {
+          const paidCols = [1, 2, 3, 4, 5, 6].map(n => isPaidCol(r, `paid_${n}`));
           const row: XlsxRow = {
             name:          getStr(r, 'name'),
             unit_code:     getStr(r, 'unit_code'),
@@ -401,6 +438,8 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
             area:          getStr(r, 'area'),
             floor:         getStr(r, 'floor'),
             address:       getStr(r, 'address'),
+            paid:          paidCols.map(p => p.paid),
+            paidProvided:  paidCols.some(p => p.has),
           };
           // تخطّي فقط لو مفيش اسم
           if (!row.name) {
@@ -418,74 +457,104 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     reader.readAsArrayBuffer(file);
   }
 
+  xlsxSkippedDetails: { name: string; reason: string }[] = [];
+
   async submitXlsx() {
+    if (!this.auth.canManagePayments) return;
     if (!this.projectName()) { this.toast.error('اختر مشروعاً أولاً'); return; }
     const validRows = this.xlsxRows.filter(r => !r.error);
     if (!validRows.length || this.xlsxImporting) return;
     this.xlsxImporting = true;
     let added = 0, skipped = 0;
+    const skippedDetails: { name: string; reason: string }[] = [];
 
     let updated = 0;
     for (let i = 0; i < validRows.length; i++) {
       const row = validRows[i];
       this.xlsxStatus = `${i + 1} / ${validRows.length} — ${row.name}`;
 
-      const newFields = {
-        unit_code: row.unit_code,
-        email:     row.email,
-        id:        row.id,
-        natonal:   row.natonal,
-        phone:     row.phone,
-        area:      row.area,
-        floor:     row.floor,
-        address:   row.address,
-      };
+      try {
+        const newFields = {
+          unit_code: row.unit_code,
+          email:     row.email,
+          id:        row.id,
+          natonal:   row.natonal,
+          phone:     row.phone,
+          area:      row.area,
+          floor:     row.floor,
+          address:   row.address,
+        };
 
-      const dup = await this.supa.checkDuplicate(this.projectName(), row.name, row.unit_code);
-      if (dup === 'unit') {
-        const ok = await this.supa.updateContractByUnitCode(
-          this.projectName(), row.unit_code, { client_name: row.name, fields: newFields }
-        );
-        if (ok) updated++; else skipped++;
-        continue;
+        const dup = await this.supa.checkDuplicate(this.projectName(), row.name, row.unit_code);
+        if (dup === 'unit') {
+          const contractId = await this.supa.updateContractByUnitCode(
+            this.projectName(), row.unit_code, { client_name: row.name, fields: newFields }
+          );
+          if (contractId) {
+            if (row.paidProvided) await this.supa.syncPaymentStatuses(contractId, row.paid);
+            updated++;
+          } else {
+            skipped++;
+            skippedDetails.push({ name: row.name, reason: `لم يتم العثور على العميل صاحب كود الوحدة "${row.unit_code}" عند التحديث` });
+          }
+          continue;
+        }
+        if (dup === 'name') {
+          const contractId = await this.supa.updateContractByName(
+            this.projectName(), row.name, { client_name: row.name, fields: newFields }
+          );
+          if (contractId) {
+            if (row.paidProvided) await this.supa.syncPaymentStatuses(contractId, row.paid);
+            updated++;
+          } else {
+            skipped++;
+            skippedDetails.push({ name: row.name, reason: 'لم يتم العثور على العميل المطابق للاسم عند التحديث' });
+          }
+          continue;
+        }
+
+        const price = row.unit_price ? Number(row.unit_price.replace(/,/g, '')) : 0;
+        const fp = row.first_payment ? Number(row.first_payment.replace(/,/g, '')) : Math.round(price * this.PCTS[0]);
+        const dateStr = row.contract_date || this.toDateStr(new Date());
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const installments = this.PCTS.map((pct, idx) => {
+          const dt = new Date(y, m - 1 + idx * 3, d);
+          const amount = idx === 0 ? fp
+            : idx < 5 ? Math.round(price * pct)
+            : price - fp - this.PCTS.slice(1, 5).reduce((s, p) => s + Math.round(price * p), 0);
+          return {
+            amount,
+            dueDate: this.toDateStr(dt),
+            paid: row.paidProvided ? row.paid[idx] : idx === 0,
+          };
+        });
+
+        const result = await this.supa.saveContract({
+          projectName: this.projectName(),
+          clientName: row.name,
+          unitPrice: price,
+          firstPayment: fp,
+          contractDate: dateStr,
+          fields: newFields,
+          installments,
+        });
+        if (!('error' in result)) {
+          added++;
+        } else {
+          skipped++;
+          skippedDetails.push({ name: row.name, reason: result.error });
+        }
+      } catch (e: any) {
+        skipped++;
+        skippedDetails.push({ name: row.name, reason: e?.message ?? 'خطأ غير متوقع' });
       }
-      if (dup === 'name') {
-        const ok = await this.supa.updateContractByName(
-          this.projectName(), row.name, { client_name: row.name, fields: newFields }
-        );
-        if (ok) updated++; else skipped++;
-        continue;
-      }
-
-      const price = row.unit_price ? Number(row.unit_price.replace(/,/g, '')) : 0;
-      const fp = row.first_payment ? Number(row.first_payment.replace(/,/g, '')) : Math.round(price * this.PCTS[0]);
-      const dateStr = row.contract_date || new Date().toISOString().split('T')[0];
-      const [y, m, d] = dateStr.split('-').map(Number);
-      const installments = this.PCTS.map((pct, idx) => {
-        const dt = new Date(y, m - 1 + idx * 3, d);
-        const amount = idx === 0 ? fp
-          : idx < 5 ? Math.round(price * pct)
-          : price - fp - this.PCTS.slice(1, 5).reduce((s, p) => s + Math.round(price * p), 0);
-        return { amount, dueDate: dt.toISOString().split('T')[0] };
-      });
-
-      const result = await this.supa.saveContract({
-        projectName: this.projectName(),
-        clientName: row.name,
-        unitPrice: price,
-        firstPayment: fp,
-        contractDate: dateStr,
-        fields: newFields,
-        installments,
-      });
-      if (!('error' in result)) added++;
-      else skipped++;
     }
 
     const all = await this.supa.loadContracts();
     this.contracts.set(all.filter(c => c.project_name === this.projectName()));
     this.xlsxImporting = false;
     this.xlsxOpen = false;
+    this.xlsxSkippedDetails = skippedDetails;
 
     const parts = [];
     if (added)   parts.push(`أضيف ${added}`);
@@ -493,6 +562,8 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     if (skipped) parts.push(`تخطّي ${skipped}`);
     this.toast.success('تم الاستيراد', parts.join(' · '));
   }
+
+  closeXlsxSkipped() { this.xlsxSkippedDetails = []; }
 
   // ── Init ────────────────────────────────────────────────────────────────────
   ngOnInit() {
@@ -633,12 +704,14 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
       ? `${nameParts[0]} ${nameParts[nameParts.length - 1]}`
       : nameParts[0];
 
+    const senderName = this.auth.displayName || 'عبدالرحمن أمين';
+
     const msg =
 `السلام عليكم ورحمة الله وبركاته 🌹
 
 أ/ ${firstName}
 
-معك عبدالرحمن أمين من شركة مدائن العقارية.
+معك ${senderName} من شركة مدائن العقارية.
 
 حبيت أذكركم بأنه تم إرسال إشعار على بريدكم الإلكتروني بخصوص ${paymentLabel}${dueDate ? ' التي بتاريخ ' + dueDate + daysNote : ''} الخاصة بالوحدة رقم ${unitCode} في ${this.projectName()}.
 

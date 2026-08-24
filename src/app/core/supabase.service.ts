@@ -78,7 +78,9 @@ export class SupabaseService {
   }
 
   /** Check for duplicate client name or unit code within a project.
-   *  Unit code is checked first (higher priority), then client name.
+   *  If a unit code is given, it's the sole source of truth (a client can legitimately
+   *  own several units under the same name) — name is only used as a fallback when no
+   *  unit code is provided at all, since that's the only signal left to detect re-entry.
    *  Returns 'unit' | 'name' | null */
   async checkDuplicate(projectName: string, clientName: string, unitCode: string): Promise<'name' | 'unit' | null> {
     if (unitCode.trim()) {
@@ -87,7 +89,7 @@ export class SupabaseService {
         .eq('project_name', projectName)
         .filter('fields->>unit_code', 'ilike', unitCode.trim())
         .limit(1);
-      if (byUnit?.length) return 'unit';
+      return byUnit?.length ? 'unit' : null;
     }
 
     const { data: byName } = await this.db.from('contracts')
@@ -108,7 +110,7 @@ export class SupabaseService {
     firstPayment: number;
     contractDate: string;
     fields: Record<string, string>;
-    installments: { amount: number; dueDate: string }[];
+    installments: { amount: number; dueDate: string; paid?: boolean }[];
   }): Promise<{ contractId: string } | { error: string }> {
     const { data: contract, error: ce } = await this.db
       .from('contracts')
@@ -126,15 +128,18 @@ export class SupabaseService {
     if (ce || !contract) return { error: ce?.message ?? 'خطأ في حفظ العقد' };
 
     const now = new Date().toISOString();
-    const paymentRows = data.installments.map((inst, i) => ({
-      contract_id: contract.id,
-      installment_number: i + 1,
-      label: INSTALL_LABELS[i],
-      amount: inst.amount,
-      due_date: inst.dueDate,
-      paid: i === 0,
-      paid_at: i === 0 ? now : null,
-    }));
+    const paymentRows = data.installments.map((inst, i) => {
+      const paid = inst.paid ?? (i === 0);
+      return {
+        contract_id: contract.id,
+        installment_number: i + 1,
+        label: INSTALL_LABELS[i],
+        amount: inst.amount,
+        due_date: inst.dueDate,
+        paid,
+        paid_at: paid ? now : null,
+      };
+    });
 
     const { error: pe } = await this.db.from('payments').insert(paymentRows);    if (pe) return { error: pe.message };
 
@@ -181,7 +186,7 @@ export class SupabaseService {
     projectName: string,
     unitCode: string,
     updates: { client_name?: string; fields?: Record<string, string> }
-  ): Promise<boolean> {
+  ): Promise<string | null> {
     const { data } = await this.db
       .from('contracts')
       .select('id, fields')
@@ -189,7 +194,7 @@ export class SupabaseService {
       .filter('fields->>unit_code', 'ilike', unitCode.trim())
       .limit(1)
       .single();
-    if (!data) return false;
+    if (!data) return null;
 
     // Merge: keep existing values for keys that are empty/missing in the update
     const existing: Record<string, string> = (data as any).fields ?? {};
@@ -203,7 +208,7 @@ export class SupabaseService {
     if (updates.client_name) payload['client_name'] = updates.client_name;
 
     const { error } = await this.db.from('contracts').update(payload).eq('id', (data as any).id);
-    return !error;
+    return error ? null : (data as any).id;
   }
 
   /** Update fields + client_name for existing contract by client name within a project. */
@@ -211,7 +216,7 @@ export class SupabaseService {
     projectName: string,
     clientName: string,
     updates: { client_name?: string; fields?: Record<string, string> }
-  ): Promise<boolean> {
+  ): Promise<string | null> {
     const { data } = await this.db
       .from('contracts')
       .select('id, fields')
@@ -219,7 +224,7 @@ export class SupabaseService {
       .ilike('client_name', clientName.trim())
       .limit(1)
       .single();
-    if (!data) return false;
+    if (!data) return null;
 
     const existing: Record<string, string> = (data as any).fields ?? {};
     const incoming = updates.fields ?? {};
@@ -232,7 +237,29 @@ export class SupabaseService {
     if (updates.client_name) payload['client_name'] = updates.client_name;
 
     const { error } = await this.db.from('contracts').update(payload).eq('id', (data as any).id);
-    return !error;
+    return error ? null : (data as any).id;
+  }
+
+  /** Sync paid/unpaid status of a contract's installments to match the given per-installment flags.
+   *  paidFlags[0] = installment_number 1, paidFlags[1] = installment_number 2, etc.
+   *  Only touches installments actually present, and only writes rows whose status changed. */
+  async syncPaymentStatuses(contractId: string, paidFlags: boolean[]): Promise<boolean> {
+    const { data, error } = await this.db
+      .from('payments')
+      .select('id, installment_number, paid')
+      .eq('contract_id', contractId);
+    if (error || !data) return false;
+
+    const now = new Date().toISOString();
+    const updates = data
+      .filter(p => paidFlags[p.installment_number - 1] !== undefined && paidFlags[p.installment_number - 1] !== p.paid)
+      .map(p => {
+        const paid = paidFlags[p.installment_number - 1];
+        return this.db.from('payments').update({ paid, paid_at: paid ? now : null }).eq('id', p.id);
+      });
+
+    const results = await Promise.all(updates);
+    return results.every(r => !r.error);
   }
 
   /** Send an early reminder email for a single payment */

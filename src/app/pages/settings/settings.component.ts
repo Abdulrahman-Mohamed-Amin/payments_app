@@ -18,6 +18,7 @@ export class SettingsComponent implements OnInit {
   email = '';
   role = '';
   notificationEmail = '';
+  dailyEmailEnabled = true;
 
   notifyOverdue = true;
   notifyNewContract = true;
@@ -36,10 +37,11 @@ export class SettingsComponent implements OnInit {
     this.company  = meta['company'] ?? 'شركة مدائن العقارية';
     this.email    = this.auth.currentUser?.email ?? '';
 
-    this.notificationEmail  = meta['notification_email'] ?? '';
-    this.notifyOverdue      = meta['notifyOverdue']      ?? true;
-    this.notifyNewContract  = meta['notifyNewContract']  ?? true;
-    this.notifyPaymentDue   = meta['notifyPaymentDue']   ?? true;
+    this.notificationEmail  = meta['notification_email']  ?? '';
+    this.dailyEmailEnabled  = meta['daily_email_enabled'] ?? true;
+    this.notifyOverdue      = meta['notifyOverdue']       ?? true;
+    this.notifyNewContract  = meta['notifyNewContract']   ?? true;
+    this.notifyPaymentDue   = meta['notifyPaymentDue']    ?? true;
   }
 
   async save() {
@@ -48,13 +50,14 @@ export class SettingsComponent implements OnInit {
     this.errorMsg = '';
 
     const err = await this.auth.updateProfile({
-      name:               this.name,
-      role:               this.role,
-      company:            this.company,
-      notification_email: this.notificationEmail.trim(),
-      notifyOverdue:      this.notifyOverdue,
-      notifyNewContract:  this.notifyNewContract,
-      notifyPaymentDue:   this.notifyPaymentDue,
+      name:                this.name,
+      role:                this.role,
+      company:             this.company,
+      notification_email:  this.notificationEmail.trim(),
+      daily_email_enabled: this.dailyEmailEnabled,
+      notifyOverdue:       this.notifyOverdue,
+      notifyNewContract:   this.notifyNewContract,
+      notifyPaymentDue:    this.notifyPaymentDue,
     });
 
     this.saving = false;

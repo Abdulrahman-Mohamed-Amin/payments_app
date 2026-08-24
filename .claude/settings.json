@@ -7,7 +7,10 @@
       "PowerShell($filePath = \"D:\\\\꧟�� ���矩�\\\\abdulrahman\\\\website\\\\dash-project\\\\??����韘 -106.xlsx\")",
       "mcp__supabase__list_edge_functions",
       "Bash(node -e \"const a=require\\('./angular.json'\\); console.log\\(JSON.stringify\\(a.projects[Object.keys\\(a.projects\\)[0]].architect.build.options.assets, null, 2\\)\\)\")",
-      "Bash(cp \"d:\\\\مدائن العقارية\\\\abdulrahman\\\\website\\\\dash-project\\\\src\\\\logo-blue.png\" \"d:\\\\مدائن العقارية\\\\abdulrahman\\\\website\\\\dash-project\\\\public\\\\logo-blue.png\")"
+      "Bash(cp \"d:\\\\مدائن العقارية\\\\abdulrahman\\\\website\\\\dash-project\\\\src\\\\logo-blue.png\" \"d:\\\\مدائن العقارية\\\\abdulrahman\\\\website\\\\dash-project\\\\public\\\\logo-blue.png\")",
+      "Bash(git rm *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ],
     "additionalDirectories": [
       "d:\\مدائن العقارية\\abdulrahman\\website\\dash-project\\src"

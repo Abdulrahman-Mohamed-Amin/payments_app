@@ -167,9 +167,9 @@
           }
         </div>
         <div class="flex items-center gap-3 rounded-xl border border-line py-1.5 pr-1.5 pl-3">
-          <div class="grid h-8 w-8 place-items-center rounded-lg bg-brand-100 text-brand-700 text-sm font-bold">ع</div>
+          <div class="grid h-8 w-8 place-items-center rounded-lg bg-brand-100 text-brand-700 text-sm font-bold">{{ auth.displayName.charAt(0) || '؟' }}</div>
           <div class="hidden sm:block leading-tight whitespace-nowrap">
-            <p class="text-sm font-semibold">عبدالرحمن الأمين</p>
+            <p class="text-sm font-semibold">{{ auth.displayName || auth.currentUser?.email }}</p>
           </div>
           <button
             type="button"
