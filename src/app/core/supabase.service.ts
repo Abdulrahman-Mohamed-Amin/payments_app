@@ -77,27 +77,30 @@ export class SupabaseService {
     return !error;
   }
 
-  /** Check for duplicate client name or unit code within a project.
-   *  If a unit code is given, it's the sole source of truth (a client can legitimately
-   *  own several units under the same name) — name is only used as a fallback when no
-   *  unit code is provided at all, since that's the only signal left to detect re-entry.
-   *  Returns 'unit' | 'name' | null */
+  /** Check for a duplicate client name OR unit code within a project — checked
+   *  independently, so a match on either one alone counts as a duplicate even if the
+   *  other field differs (e.g. same client name re-entered under a different/corrected
+   *  unit code is still flagged, not silently accepted as a second unit for that client).
+   *  Name is checked first: if both would match (different existing rows), 'name' wins.
+   *  Returns 'name' | 'unit' | null */
   async checkDuplicate(projectName: string, clientName: string, unitCode: string): Promise<'name' | 'unit' | null> {
+    if (clientName.trim()) {
+      const { data: byName } = await this.db.from('contracts')
+        .select('id')
+        .eq('project_name', projectName)
+        .ilike('client_name', clientName.trim())
+        .limit(1);
+      if (byName?.length) return 'name';
+    }
+
     if (unitCode.trim()) {
       const { data: byUnit } = await this.db.from('contracts')
         .select('id')
         .eq('project_name', projectName)
         .filter('fields->>unit_code', 'ilike', unitCode.trim())
         .limit(1);
-      return byUnit?.length ? 'unit' : null;
+      if (byUnit?.length) return 'unit';
     }
-
-    const { data: byName } = await this.db.from('contracts')
-      .select('id')
-      .eq('project_name', projectName)
-      .ilike('client_name', clientName.trim())
-      .limit(1);
-    if (byName?.length) return 'name';
 
     return null;
   }
@@ -178,6 +181,23 @@ export class SupabaseService {
       .update({ contacted: !current, contacted_at: !current ? new Date().toISOString() : null })
       .eq('id', id);
     return !error;
+  }
+
+  /** Checks whether a contract with the exact same client name AND unit code already
+   *  exists in the project — a true duplicate re-import, as opposed to checkDuplicate()
+   *  which matches on unit code alone (or name alone) to support legitimate corrections
+   *  (e.g. fixing a typo'd unit code for an existing client).
+   *  Returns the existing contract's id, or null if no exact (name + unit) match. */
+  async findExactDuplicateId(projectName: string, clientName: string, unitCode: string): Promise<string | null> {
+    if (!clientName.trim() || !unitCode.trim()) return null;
+    const { data } = await this.db.from('contracts')
+      .select('id')
+      .eq('project_name', projectName)
+      .ilike('client_name', clientName.trim())
+      .filter('fields->>unit_code', 'ilike', unitCode.trim())
+      .limit(1)
+      .maybeSingle();
+    return data?.id ?? null;
   }
 
   /** Update fields + client_name for existing contract by unit_code within a project.

@@ -60,6 +60,27 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     )
   );
 
+  // ── Search / filter (client name or unit code) ────────────────────────────────
+  searchQuery = signal('');
+  /** يطبّع نصاً للمقارنة: يحذف الأحرف الخفية (علامات اتجاه/تنسيق) الشائعة في بيانات
+   *  إكسل العربية، ويوحّد أشكال الشرطة المختلفة (– — ‑) إلى شرطة عادية "-" */
+  private normSearch(s: string): string {
+    return s
+      .replace(/[\u200B-\u200F\u202A-\u202E\u2060\uFEFF\u00A0]/g, '')
+      .replace(/[\u2010-\u2015\u2212]/g, '-')
+      .trim()
+      .toLowerCase();
+  }
+  filtered = computed(() => {
+    const q = this.normSearch(this.searchQuery());
+    if (!q) return this.sorted();
+    return this.sorted().filter(c =>
+      this.normSearch(c.client_name).includes(q) ||
+      this.normSearch(c.fields?.['unit_code'] ?? '').includes(q)
+    );
+  });
+  clearSearch() { this.searchQuery.set(''); }
+
   // ── Delete ──────────────────────────────────────────────────────────────────
   deleteTargetId: string | null = null;
   deleting = false;
@@ -224,7 +245,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   openXlsx() {
     if (!this.auth.canManagePayments) return;
     if (!this.projectName()) { this.toast.error('اختر مشروعاً أولاً'); return; }
-    this.xlsxRows = []; this.xlsxStatus = ''; this.xlsxOpen = true; this.xlsxSkippedDetails = [];
+    this.xlsxRows = []; this.xlsxStatus = ''; this.xlsxOpen = true; this.xlsxSkippedDetails = []; this.xlsxDuplicateDetails = [];
   }
   closeXlsx() { this.xlsxOpen = false; if (this.xlsxInputRef) this.xlsxInputRef.nativeElement.value = ''; }
   triggerXlsxInput() { this.xlsxInputRef?.nativeElement.click(); }
@@ -458,6 +479,8 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   }
 
   xlsxSkippedDetails: { name: string; reason: string }[] = [];
+  xlsxDuplicateDetails: { name: string; unit: string }[] = [];
+  closeXlsxDuplicates() { this.xlsxDuplicateDetails = []; }
 
   async submitXlsx() {
     if (!this.auth.canManagePayments) return;
@@ -465,8 +488,9 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     const validRows = this.xlsxRows.filter(r => !r.error);
     if (!validRows.length || this.xlsxImporting) return;
     this.xlsxImporting = true;
-    let added = 0, skipped = 0;
+    let added = 0, skipped = 0, duplicates = 0;
     const skippedDetails: { name: string; reason: string }[] = [];
+    const duplicateDetails: { name: string; unit: string }[] = [];
 
     let updated = 0;
     for (let i = 0; i < validRows.length; i++) {
@@ -484,6 +508,19 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
           floor:     row.floor,
           address:   row.address,
         };
+
+        // ── تحقّق من التكرار الكامل: نفس الاسم + نفس رقم الوحدة معاً ────────
+        // (منفصل عن checkDuplicate أدناه، التي تطابق الوحدة أو الاسم منفردَين
+        // لدعم تصحيح بيانات عميل موجود — هنا نريد رصد إعادة استيراد نفس العميل بالضبط)
+        if (row.unit_code) {
+          const exactId = await this.supa.findExactDuplicateId(this.projectName(), row.name, row.unit_code);
+          if (exactId) {
+            duplicates++;
+            duplicateDetails.push({ name: row.name, unit: row.unit_code });
+            if (row.paidProvided) await this.supa.syncPaymentStatuses(exactId, row.paid);
+            continue;
+          }
+        }
 
         const dup = await this.supa.checkDuplicate(this.projectName(), row.name, row.unit_code);
         if (dup === 'unit') {
@@ -555,12 +592,20 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     this.xlsxImporting = false;
     this.xlsxOpen = false;
     this.xlsxSkippedDetails = skippedDetails;
+    this.xlsxDuplicateDetails = duplicateDetails;
 
     const parts = [];
-    if (added)   parts.push(`أضيف ${added}`);
-    if (updated) parts.push(`حُدِّث ${updated}`);
-    if (skipped) parts.push(`تخطّي ${skipped}`);
+    if (added)      parts.push(`أضيف ${added}`);
+    if (updated)    parts.push(`حُدِّث ${updated}`);
+    if (duplicates) parts.push(`موجود بالفعل ${duplicates}`);
+    if (skipped)    parts.push(`تخطّي ${skipped}`);
     this.toast.success('تم الاستيراد', parts.join(' · '));
+    if (duplicates) {
+      this.toast.info(
+        `${duplicates} عميل موجود بالفعل`,
+        'نفس الاسم ورقم الوحدة موجودان مسبقاً — راجع القائمة التفصيلية'
+      );
+    }
   }
 
   closeXlsxSkipped() { this.xlsxSkippedDetails = []; }

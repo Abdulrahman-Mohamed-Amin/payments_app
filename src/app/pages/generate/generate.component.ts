@@ -35,6 +35,19 @@ const INSTALL_MONTHS = [0, 3, 6, 9, 12, 15];
 const INSTALL_NAMES_AR = ['', 'الأولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة'];
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
+/** كلمات عناوين الأعمدة المعروفة (عربي/إنجليزي) — تُستخدم للتعرّف على صف العناوين الحقيقي
+ *  في ملف الإكسل بدل الاعتماد على عدد الخلايا المملوءة، لأن صف عناوين قد يحتوي عمداً على
+ *  خلية فارغة واحدة (عمود غير مستخدم) فيبدو "أقل امتلاءً" من صفوف البيانات نفسها */
+const HEADER_KEYWORDS = [
+  'name', 'اسم العميل', 'الاسم', 'client_name', 'اسم المشتري', 'اسم',
+  'unit_price', 'السعر', 'سعر الوحدة', 'قيمة العقد', 'price', 'إجمالي السعر', 'اجمالي السعر',
+  'first_payment', 'الدفعة الأولى', 'دفعة أولى', 'دفعة مقدمة', 'مقدم', 'الدفعة المقدمة',
+  'contract_date', 'تاريخ العقد', 'التاريخ', 'تاريخ', 'تاريخ التعاقد',
+  'unit_code', 'رقم الوحدة', 'id', 'رقم الهوية', 'natonal', 'الجنسية', 'phone', 'رقم الهاتف',
+  'area', 'المساحة الإجمالية', 'floor', 'رقم الطابق', 'email', 'mail', 'البريد الإلكتروني',
+  'address', 'العنوان الوطني',
+];
+
 const LABEL_MAP: Record<string, string> = {
   name: 'اسم المشتري',
   natonal: 'الجنسية',
@@ -361,6 +374,18 @@ export class GenerateComponent implements OnInit {
       // تطبيع الحقول الأساسية للحفظ في Supabase
       const savedFields = this.normalizeFields(dynamic);
 
+      // ── التحقق من التكرار أولاً — قبل توليد أي ملف ─────────────────────────────
+      const dup = await this.supa.checkDuplicate(
+        this.selectedProject, dynamic['name'] || '', dynamic['unit_code'] || ''
+      );
+      if (dup) {
+        this.toast.error(dup === 'name'
+          ? 'العميل مسجّل مسبقاً في هذا المشروع — لم يُنشأ عقد جديد'
+          : 'رقم الوحدة مسجّل مسبقاً في هذا المشروع — لم يُنشأ عقد جديد');
+        this.cGenerating = false;
+        return;
+      }
+
       const templateBuf = await this.cTemplateFile.arrayBuffer();
       const fileLabel = [data['unit_code'], data['name']].filter(Boolean).map((s: string) => s.replace(/\s+/g, '_')).join('_') || 'عقد';
 
@@ -378,18 +403,6 @@ export class GenerateComponent implements OnInit {
       } else {
         const out = this.renderDocx(templateBuf, data);
         this.downloadBlob(new Blob([out], { type: DOCX_MIME }), `عقد_${fileLabel}.docx`);
-      }
-
-      // ── التحقق من التكرار ────────────────────────────────────────────────────
-      const dup = await this.supa.checkDuplicate(
-        this.selectedProject, dynamic['name'] || '', dynamic['unit_code'] || ''
-      );
-      if (dup) {
-        this.toast.error(dup === 'name'
-          ? 'العميل مسجّل مسبقاً في هذا المشروع'
-          : 'رقم الوحدة مسجّل مسبقاً في هذا المشروع');
-        this.cGenerating = false;
-        return;
       }
 
       // ── حفظ في Supabase ──────────────────────────────────────────────────────
@@ -441,22 +454,42 @@ export class GenerateComponent implements OnInit {
   clearNotifFile() { this.cNotifFile = null; this.cNotifName = ''; if (this.cNotifInputRef) this.cNotifInputRef.nativeElement.value = ''; }
 
   // ── Excel parsing ───────────────────────────────────────────────────────────────
-  private parseExcel(file: File): Promise<{ rows: any[]; cols: string[] }> {
+  private parseExcel(file: File, extraKeywords: string[] = []): Promise<{ rows: any[]; cols: string[]; sheetNames: string[]; usedSheet: string }> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
           const wb = XLSX.read(new Uint8Array(e.target!.result as ArrayBuffer), { type: 'array', cellDates: true });
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false, dateNF: 'yyyy-mm-dd' });
-          // نبحث عن صف العناوين ضمن أول 15 صفاً بأخذ الصف الأكثر امتلاءً بالخلايا
-          // (وليس أول صف غير فارغ فقط) لتفادي التقاط صف عنوان/شعار قبل صف العناوين الحقيقي
-          let hi = -1, bestCount = 0;
-          for (let r = 0; r < Math.min(raw.length, 15); r++) {
-            const count = raw[r].filter((c: any) => String(c).trim() !== '').length;
-            if (count > bestCount) { bestCount = count; hi = r; }
+          // نختار أول ورقة تحتوي بيانات فعلية بدل الاعتماد دائماً على الورقة الأولى بصمت،
+          // حتى لا تختفي بيانات مشروع جديد أضافه المستخدم في ورقة أخرى ضمن نفس الملف
+          let usedSheetName = wb.SheetNames[0];
+          let raw: any[][] = [];
+          for (const sn of wb.SheetNames) {
+            const candidate: any[][] = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '', raw: false, dateNF: 'yyyy-mm-dd' });
+            const hasData = candidate.some(r => r.some((c: any) => String(c).trim() !== ''));
+            if (hasData) { raw = candidate; usedSheetName = sn; break; }
           }
-          if (hi === -1) { resolve({ rows: [], cols: [] }); return; }
+          // نبحث عن صف العناوين ضمن أول 15 صفاً بالتعرّف على كلمات عناوين معروفة (name, unit_price...)
+          // بدل عدّ الخلايا المملوءة: صف عناوين قد يتعمّد ترك عمود بلا اسم (فيبدو "أقل امتلاءً" من
+          // صفوف البيانات المكتملة تماماً)، فيؤدي عدّ الخلايا لاختيار صف بيانات خطأً كصف عناوين
+          const keywordSet = new Set([...HEADER_KEYWORDS, ...extraKeywords].map(k => this.normKey(k)));
+          let hi = -1;
+          const scanRows = Math.min(raw.length, 15);
+          let bestScore = 0;
+          for (let r = 0; r < scanRows; r++) {
+            const nonEmpty = raw[r].map((c: any) => String(c).trim()).filter((c: string) => c !== '');
+            const score = nonEmpty.filter((c: string) => keywordSet.has(this.normKey(c))).length;
+            if (score > bestScore) { bestScore = score; hi = r; }
+          }
+          if (hi === -1) {
+            // لم نتعرّف على أي عمود معروف — رجوع احتياطي للصف الأكثر امتلاءً بالخلايا
+            let bestCount = 0;
+            for (let r = 0; r < scanRows; r++) {
+              const count = raw[r].filter((c: any) => String(c).trim() !== '').length;
+              if (count > bestCount) { bestCount = count; hi = r; }
+            }
+          }
+          if (hi === -1) { resolve({ rows: [], cols: [], sheetNames: wb.SheetNames, usedSheet: usedSheetName }); return; }
           const cols = raw[hi].map((h: any) => String(h).trim());
           const rows: any[] = [];
           for (let i = hi + 1; i < raw.length; i++) {
@@ -466,7 +499,7 @@ export class GenerateComponent implements OnInit {
             cols.forEach((col, ci) => { obj[col] = String(row[ci] ?? '').trim(); });
             rows.push(obj);
           }
-          resolve({ rows, cols });
+          resolve({ rows, cols, sheetNames: wb.SheetNames, usedSheet: usedSheetName });
         } catch (err) { reject(err); }
       };
       reader.onerror = reject;
@@ -484,8 +517,14 @@ export class GenerateComponent implements OnInit {
   async handleContractExcel(file: File) {
     if (!file.name.match(/\.(xlsx|xls)$/i)) { this.toast.error('يرجى اختيار ملف Excel بصيغة .xlsx أو .xls'); return; }
     try {
-      const { rows, cols } = await this.parseExcel(file);
+      const extraKeywords = this.cDynamicFields.flatMap(f => [f.varName, f.label]);
+      const { rows, cols, sheetNames, usedSheet } = await this.parseExcel(file, extraKeywords);
       this.cExcelFile = file; this.cExcelName = file.name; this.cExcelRows = rows; this.cExcelCols = cols;
+      if (!rows.length) {
+        this.toast.error('لم يتم العثور على بيانات صالحة في ملف الإكسل', sheetNames.length > 1 ? `الأوراق الموجودة: ${sheetNames.join('، ')}` : undefined);
+      } else if (sheetNames.length > 1) {
+        this.toast.info(`تم قراءة ${rows.length} صف من ورقة "${usedSheet}"`, `باقي الأوراق (${sheetNames.filter(s => s !== usedSheet).join('، ')}) لم تُقرأ`);
+      }
     } catch (err: any) { this.toast.error('خطأ في قراءة ملف Excel: ' + (err.message || err)); }
   }
 
@@ -510,17 +549,21 @@ export class GenerateComponent implements OnInit {
       const projectName = this.selectedProject;
 
       let skippedIncomplete = 0;
+      let duplicateSkipped = 0;
       const missCounts = { name: 0, unit_price: 0, contract_date: 0 };
+      const duplicateDetails: { name: string; reason: string }[] = [];
       for (let i = 0; i < total; i++) {
         const row = this.cExcelRows[i];
-        const up = parseFloat(this.pickRow(row, ['unit_price', 'السعر', 'سعر الوحدة', 'قيمة العقد', 'price']).replace(/,/g, '')) || 0;
-        const fp = parseFloat(this.pickRow(row, ['first_payment', 'الدفعة الأولى', 'دفعة أولى', 'دفعة مقدمة']).replace(/,/g, '')) || 0;
-        const bd = this.parseAnyDate(this.pickRow(row, ['contract_date', 'تاريخ العقد', 'التاريخ', 'تاريخ']));
+        const up = parseFloat(this.pickRow(row, ['unit_price', 'السعر', 'سعر الوحدة', 'قيمة العقد', 'price', 'إجمالي السعر', 'اجمالي السعر', 'سعر']).replace(/,/g, '')) || 0;
+        const fp = parseFloat(this.pickRow(row, ['first_payment', 'الدفعة الأولى', 'دفعة أولى', 'دفعة مقدمة', 'مقدم', 'الدفعة المقدمة']).replace(/,/g, '')) || 0;
+        const bd = this.parseAnyDate(this.pickRow(row, ['contract_date', 'تاريخ العقد', 'التاريخ', 'تاريخ', 'تاريخ التعاقد']));
         const dynamic: Record<string, string> = {};
-        this.cDynamicFields.forEach(f => { dynamic[f.varName] = this.pickRow(row, [f.varName]); });
+        // نطابق كل حقل ديناميكي باسم متغيّره (varName) وأيضاً بتسميته العربية المعروضة فعلياً
+        // في الواجهة (f.label)، حتى لو استخدم المستخدم عنوان العمود الظاهر له بدل اسم المتغيّر الخام
+        this.cDynamicFields.forEach(f => { dynamic[f.varName] = this.pickRow(row, [f.varName, f.label]); });
 
         // ── تخطّي الصفوف الناقصة (اسم + سعر + تاريخ فقط) ──────────────────
-        const clientName = dynamic['name'] || this.pickRow(row, ['name', 'اسم العميل', 'الاسم', 'client_name']);
+        const clientName = dynamic['name'] || this.pickRow(row, ['name', 'اسم العميل', 'الاسم', 'client_name', 'اسم المشتري', 'اسم']);
         if (!up || !bd || !clientName) {
           skippedIncomplete++;
           if (!clientName) missCounts.name++;
@@ -535,13 +578,24 @@ export class GenerateComponent implements OnInit {
         const reserved = this.computeReserved(up, fp, bd);
         const data = this.normalizeFields({ ...row, ...dynamic, ...reserved });
 
+        // ── التحقق من التكرار أولاً — قبل توليد أي ملف للصف ─────────────────
+        const dup = await this.supa.checkDuplicate(
+          projectName, data['name'] || '', data['unit_code'] || ''
+        );
+        if (dup) {
+          duplicateSkipped++;
+          duplicateDetails.push({ name: data['name'] || '', reason: dup === 'name' ? 'اسم مكرر' : 'وحدة مكررة' });
+          this.cBulkStatus = `عميل ${i + 1}/${total} — تخطّي (${dup === 'name' ? 'اسم مكرر' : 'وحدة مكررة'})`;
+          continue;
+        }
+
         const clientSlug = (data['name'] || '').replace(/\s+/g, '_');
         const unitCode = (data['unit_code'] || '').replace(/\s+/g, '_');
         const num = String(i + 1).padStart(3, '0');
         const label = [unitCode, clientSlug].filter(Boolean).join('_') || num;
         const folder = `${num}_${label}/`;
 
-        // ── توليد العقد والإشعارات (دائماً بغضّ النظر عن التكرار) ────────────
+        // ── توليد العقد والإشعارات ───────────────────────────────────────────
         this.cBulkStatus = `عميل ${i + 1}/${total} — توليد العقد...`;
         outputZip.file(folder + `${num}_عقد_${label}.docx`, this.renderDocx(templateBuf, data));
 
@@ -551,15 +605,6 @@ export class GenerateComponent implements OnInit {
             const notifData = { ...data, p_amount: reserved[`p${pi}_amount`], p_date: reserved[`p${pi}_date`], p_name: INSTALL_NAMES_AR[pi] };
             outputZip.file(folder + `اشعار_الدفعة_${INSTALL_NAMES_AR[pi]}.docx`, this.renderDocx(notifBuf, notifData));
           }
-        }
-
-        // ── التحقق من التكرار (للحفظ في Supabase فقط) ──────────────────────
-        const dup = await this.supa.checkDuplicate(
-          projectName, data['name'] || '', data['unit_code'] || ''
-        );
-        if (dup) {
-          this.cBulkStatus = `عميل ${i + 1}/${total} — تخطّي (${dup === 'name' ? 'اسم مكرر' : 'وحدة مكررة'})`;
-          continue;
         }
 
         // ── حفظ في Supabase ──────────────────────────────────────────────────
@@ -585,14 +630,41 @@ export class GenerateComponent implements OnInit {
         }
       }
 
+      const generated = total - skippedIncomplete - duplicateSkipped;
+
+      if (generated === 0) {
+        // كل الصفوف اتخطّت (بيانات ناقصة أو تكرار) — لا نعمّل تنزيل ZIP فارغ بصمت
+        const parts: string[] = [];
+        if (skippedIncomplete) parts.push(`بيانات ناقصة: ${skippedIncomplete}`);
+        if (duplicateSkipped) parts.push(`موجود بالفعل: ${duplicateSkipped}`);
+        this.cBulkStatus = `✗ لم يُنشأ أي عقد — ${parts.join(' · ')}`;
+        this.toast.error('لم يُنشأ أي عقد', parts.join(' · '));
+        this.cBulkGenerating = false;
+        return;
+      }
+
       const zipBlob = outputZip.generate({ type: 'blob', mimeType: 'application/zip' });
-      const fname = notifBuf ? `عقود_واشعارات_${total}_عميل.zip` : `عقود_${total}_عميل.zip`;
+      const fname = notifBuf ? `عقود_واشعارات_${generated}_عميل.zip` : `عقود_${generated}_عميل.zip`;
       this.downloadBlob(zipBlob, fname);
-      const processed = total - skippedIncomplete;
-      this.cBulkStatus = skippedIncomplete > 0
-        ? `✓ ${processed} عميل تم تنزيله — تخطّي ${skippedIncomplete} (الاسم مفقود: ${missCounts.name}، السعر مفقود: ${missCounts.unit_price}، التاريخ مفقود: ${missCounts.contract_date})`
-        : `✓ ${total} عميل — تم التنزيل`;
-      setTimeout(() => { this.cBulkStatus = ''; }, 5000);
+      if (skippedIncomplete > 0 || duplicateSkipped > 0) {
+        const parts: string[] = [];
+        if (skippedIncomplete) parts.push(`بيانات ناقصة: ${skippedIncomplete}`);
+        if (duplicateSkipped) parts.push(`موجود بالفعل: ${duplicateSkipped}`);
+        this.cBulkStatus = `✓ ${generated} عميل تم تنزيله — ${parts.join(' · ')}`;
+        // رسائل التخطّي تبقى ظاهرة (لا تختفي تلقائياً) لأن المستخدم قد لا يلاحظها خلال ثوانٍ معدودة
+        if (skippedIncomplete) {
+          const detail = `الاسم مفقود: ${missCounts.name}، السعر مفقود: ${missCounts.unit_price}، التاريخ مفقود: ${missCounts.contract_date}`;
+          this.toast.error(`تم تخطّي ${skippedIncomplete} (بيانات ناقصة)`, detail);
+        }
+        if (duplicateSkipped) {
+          const names = duplicateDetails.slice(0, 5).map(d => `${d.name} (${d.reason})`).join('، ')
+            + (duplicateDetails.length > 5 ? ` +${duplicateDetails.length - 5} آخرين` : '');
+          this.toast.error(`${duplicateSkipped} عميل موجود بالفعل في المشروع`, names);
+        }
+      } else {
+        this.cBulkStatus = `✓ ${total} عميل — تم التنزيل`;
+        setTimeout(() => { this.cBulkStatus = ''; }, 5000);
+      }
     } catch (err: any) {
       this.toast.error('خطأ أثناء التوليد: ' + (err.message || err));
       this.cBulkStatus = '';
@@ -679,8 +751,14 @@ export class GenerateComponent implements OnInit {
   async handleNotifExcel(file: File) {
     if (!file.name.match(/\.(xlsx|xls)$/i)) { this.toast.error('يرجى اختيار ملف Excel بصيغة .xlsx أو .xls'); return; }
     try {
-      const { rows, cols } = await this.parseExcel(file);
+      const extraKeywords = this.nDynamicFields.flatMap(f => [f.varName, f.label]);
+      const { rows, cols, sheetNames, usedSheet } = await this.parseExcel(file, extraKeywords);
       this.nExcelFile = file; this.nExcelName = file.name; this.nExcelRows = rows; this.nExcelCols = cols;
+      if (!rows.length) {
+        this.toast.error('لم يتم العثور على بيانات صالحة في ملف الإكسل', sheetNames.length > 1 ? `الأوراق الموجودة: ${sheetNames.join('، ')}` : undefined);
+      } else if (sheetNames.length > 1) {
+        this.toast.info(`تم قراءة ${rows.length} صف من ورقة "${usedSheet}"`, `باقي الأوراق (${sheetNames.filter(s => s !== usedSheet).join('، ')}) لم تُقرأ`);
+      }
     } catch (err: any) { this.toast.error('خطأ في قراءة ملف Excel: ' + (err.message || err)); }
   }
 
@@ -699,7 +777,7 @@ export class GenerateComponent implements OnInit {
         this.nBulkStatus = `جاري التوليد ${i + 1} / ${total}...`;
         const row = this.nExcelRows[i];
         const data: Record<string, string> = {};
-        this.nDynamicFields.forEach(f => { data[f.varName] = row[f.varName] !== undefined ? String(row[f.varName]).trim() : ''; });
+        this.nDynamicFields.forEach(f => { data[f.varName] = this.pickRow(row, [f.varName, f.label]); });
         const out = this.renderDocx(templateBuf, data);
         const clientName = (data['name'] || data['اسم_العميل'] || '').replace(/\s+/g, '_');
         const unitCode = (data['unit_code'] || data['كود_الوحدة'] || '').replace(/\s+/g, '_');

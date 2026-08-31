@@ -94,45 +94,17 @@
   </div>
 
   <!-- ===================== BRAND SIDE ===================== -->
-  <div class="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
+  <div class="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-brand text-white p-12 flex-col items-center justify-center text-center gap-8">
     <div class="absolute -top-16 -left-16 h-64 w-64 rounded-full bg-white/10"></div>
     <div class="absolute bottom-10 -left-24 h-72 w-72 rounded-full bg-white/5"></div>
     <div class="absolute -bottom-20 right-10 h-48 w-48 rounded-full bg-white/5"></div>
 
-    <div class="relative flex items-center gap-2 text-white/90">
-      <app-icon name="shield" cls="h-5 w-5" />
-      <span class="text-sm font-medium">شركة مدائن العقارية — منصّة آمنة لإدارة الأملاك</span>
-    </div>
-
     <div class="relative">
-      <h2 class="text-3xl font-bold leading-snug">
-        أدِر أملاكك وعقودك<br />من مكانٍ واحد.
-      </h2>
-      <p class="text-white/80 mt-4 leading-relaxed max-w-md">
-        نظام متكامل لمتابعة العقود والدفعات لحظياً، مع تنبيهات فورية عند أي استحقاق.
-      </p>
-
-      <ul class="mt-8 space-y-3">
-        @for (h of highlights; track h) {
-          <li class="flex items-center gap-3">
-            <span class="grid h-7 w-7 place-items-center rounded-lg bg-white/20"><app-icon name="check" cls="h-4 w-4" /></span>
-            <span class="text-sm">{{ h }}</span>
-          </li>
-        }
-      </ul>
+      <img src="logo-icon-white.png" alt="مدائن العقارية" class="h-20 w-auto object-contain mx-auto" />
     </div>
 
-    <div class="relative rounded-2xl bg-white/10 backdrop-blur border border-white/15 p-5 max-w-md">
-      <p class="text-sm leading-relaxed">
-        «منصّة مدائن العقارية منحتنا رؤية كاملة على كل العقود والدفعات في مكان واحد.»
-      </p>
-      <div class="mt-4 flex items-center gap-3">
-        <div class="grid h-9 w-9 place-items-center rounded-full bg-white/20 text-sm font-bold">م</div>
-        <div class="leading-tight">
-          <p class="text-sm font-semibold">شركة مدائن العقارية</p>
-          <p class="text-[11px] text-white/70">إدارة الأملاك والعقود</p>
-        </div>
-      </div>
-    </div>
+    <h2 class="relative text-5xl font-bold leading-snug max-w-lg">
+      أدِر أملاكك وعقودك<br />من مكانٍ واحد.
+    </h2>
   </div>
 </div>
