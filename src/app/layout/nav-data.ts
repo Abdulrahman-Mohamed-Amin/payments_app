@@ -1,17 +1,18 @@
 import { IconName } from '../core/icon/icon.component';
 
 export interface NavItem {
+  /** Translation key (transloco) shown as the nav label. */
   label: string;
   icon: IconName;
   route: string;
 }
 
 export const NAV_MAIN: NavItem[] = [
-  { label: 'لوحة التحكم', icon: 'grid', route: '/dashboard' },
-  { label: 'إنشاء الوثائق', icon: 'doc', route: '/generate' },
-  { label: 'الدفعات', icon: 'money', route: '/payments' },
+  { label: 'nav.dashboard', icon: 'grid', route: '/dashboard' },
+  { label: 'nav.generate', icon: 'doc', route: '/generate' },
+  { label: 'nav.payments', icon: 'money', route: '/payments' },
 ];
 
 export const NAV_OTHER: NavItem[] = [
-  { label: 'الإعدادات', icon: 'gear', route: '/settings' },
+  { label: 'nav.settings', icon: 'gear', route: '/settings' },
 ];

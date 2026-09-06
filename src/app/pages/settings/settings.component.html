@@ -5,27 +5,27 @@
     <div class="flex items-center gap-3 mb-5">
       <div class="grid h-11 w-11 place-items-center rounded-xl bg-brand-50 text-brand-700"><app-icon name="users" /></div>
       <div>
-        <h2 class="font-bold">الملف الشخصي</h2>
-        <p class="text-xs text-ink-muted">معلومات الحساب الأساسية</p>
+        <h2 class="font-bold">{{ 'settings.profile' | transloco }}</h2>
+        <p class="text-xs text-ink-muted">{{ 'settings.profileSub' | transloco }}</p>
       </div>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <label class="block">
-        <span class="text-xs font-semibold text-ink-muted">الاسم</span>
+        <span class="text-xs font-semibold text-ink-muted">{{ 'settings.name' | transloco }}</span>
         <input [(ngModel)]="name" class="mt-1.5 w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm focus:outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100" />
       </label>
       <label class="block">
-        <span class="text-xs font-semibold text-ink-muted">المسمى الوظيفي</span>
+        <span class="text-xs font-semibold text-ink-muted">{{ 'settings.role' | transloco }}</span>
         <input [(ngModel)]="role" class="mt-1.5 w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm focus:outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100" />
       </label>
       <label class="block">
-        <span class="text-xs font-semibold text-ink-muted">الشركة</span>
+        <span class="text-xs font-semibold text-ink-muted">{{ 'settings.company' | transloco }}</span>
         <input [(ngModel)]="company" class="mt-1.5 w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm focus:outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100" />
       </label>
       <label class="block">
-        <span class="text-xs font-semibold text-ink-muted">البريد الإلكتروني</span>
+        <span class="text-xs font-semibold text-ink-muted">{{ 'settings.email' | transloco }}</span>
         <input [value]="email" type="email" dir="ltr" readonly
-          class="mt-1.5 w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm text-left opacity-60 cursor-not-allowed" />
+          class="mt-1.5 w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm text-start opacity-60 cursor-not-allowed" />
       </label>
     </div>
   </section>
@@ -35,8 +35,8 @@
     <div class="flex items-center gap-3 mb-5">
       <div class="grid h-11 w-11 place-items-center rounded-xl bg-[#FFF4E3] text-[#C77A12]"><app-icon name="bell" /></div>
       <div>
-        <h2 class="font-bold">التنبيهات</h2>
-        <p class="text-xs text-ink-muted">تحكّم في إشعارات الدفعات والعقود</p>
+        <h2 class="font-bold">{{ 'settings.notifications' | transloco }}</h2>
+        <p class="text-xs text-ink-muted">{{ 'settings.notificationsSub' | transloco }}</p>
       </div>
     </div>
 
@@ -51,46 +51,46 @@
               [class.text-brand-700]="dailyEmailEnabled"
               [class.text-ink-muted]="!dailyEmailEnabled">
           <app-icon name="bell" cls="h-3.5 w-3.5" />
-          التنبيه اليومي بالإيميل
+          {{ 'settings.dailyEmail' | transloco }}
         </span>
         <label class="cursor-pointer">
           <input type="checkbox" [(ngModel)]="dailyEmailEnabled" class="peer sr-only" />
-          <span class="relative inline-flex h-6 w-11 rounded-full bg-line transition peer-checked:bg-brand after:absolute after:top-0.5 after:right-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:-translate-x-5"></span>
+          <span class="relative inline-flex h-6 w-11 rounded-full bg-line transition peer-checked:bg-brand after:absolute after:top-0.5 after:start-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:ltr:translate-x-5 peer-checked:after:rtl:-translate-x-5"></span>
         </label>
       </div>
       @if (dailyEmailEnabled) {
         <input [(ngModel)]="notificationEmail" type="email" dir="ltr" placeholder="example@email.com"
-          class="w-full rounded-xl border border-brand-200 bg-white px-3 py-2.5 text-sm text-left focus:outline-none focus:border-brand transition" />
-        <p class="text-[11px] text-brand-700 mt-1.5">يُبعَت إيميل يومياً الساعة 11 ص (توقيت الرياض) يحتوي على كل الدفعات المستحقة</p>
+          class="w-full rounded-xl border border-brand-200 bg-white px-3 py-2.5 text-sm text-start focus:outline-none focus:border-brand transition" />
+        <p class="text-[11px] text-brand-700 mt-1.5">{{ 'settings.dailyEmailOnHint' | transloco }}</p>
       } @else {
-        <p class="text-[11px] text-ink-faint">التنبيه اليومي مُعطَّل — لن يُرسَل أي إيميل تلقائي</p>
+        <p class="text-[11px] text-ink-faint">{{ 'settings.dailyEmailOffHint' | transloco }}</p>
       }
     </div>
 
     <div class="divide-y divide-line">
       <label class="flex items-center justify-between py-3 cursor-pointer">
         <div>
-          <p class="text-sm">تنبيه عند تأخّر دفعة</p>
-          <p class="text-xs text-ink-muted mt-0.5">إشعار فوري عند حلول موعد الدفعة دون سداد</p>
+          <p class="text-sm">{{ 'settings.notifyOverdue' | transloco }}</p>
+          <p class="text-xs text-ink-muted mt-0.5">{{ 'settings.notifyOverdueSub' | transloco }}</p>
         </div>
         <input type="checkbox" [(ngModel)]="notifyOverdue" class="peer sr-only" />
-        <span class="relative h-6 w-11 shrink-0 mr-4 rounded-full bg-line transition peer-checked:bg-brand after:absolute after:top-0.5 after:right-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:-translate-x-5"></span>
+        <span class="relative h-6 w-11 shrink-0 ms-4 rounded-full bg-line transition peer-checked:bg-brand after:absolute after:top-0.5 after:start-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:ltr:translate-x-5 peer-checked:after:rtl:-translate-x-5"></span>
       </label>
       <label class="flex items-center justify-between py-3 cursor-pointer">
         <div>
-          <p class="text-sm">تنبيه عند إنشاء عقد جديد</p>
-          <p class="text-xs text-ink-muted mt-0.5">إشعار عند حفظ عقد جديد في النظام</p>
+          <p class="text-sm">{{ 'settings.notifyNewContract' | transloco }}</p>
+          <p class="text-xs text-ink-muted mt-0.5">{{ 'settings.notifyNewContractSub' | transloco }}</p>
         </div>
         <input type="checkbox" [(ngModel)]="notifyNewContract" class="peer sr-only" />
-        <span class="relative h-6 w-11 shrink-0 mr-4 rounded-full bg-line transition peer-checked:bg-brand after:absolute after:top-0.5 after:right-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:-translate-x-5"></span>
+        <span class="relative h-6 w-11 shrink-0 ms-4 rounded-full bg-line transition peer-checked:bg-brand after:absolute after:top-0.5 after:start-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:ltr:translate-x-5 peer-checked:after:rtl:-translate-x-5"></span>
       </label>
       <label class="flex items-center justify-between py-3 cursor-pointer">
         <div>
-          <p class="text-sm">تذكير قبل موعد الدفعة</p>
-          <p class="text-xs text-ink-muted mt-0.5">تنبيه قبل 3 أيام من تاريخ الاستحقاق</p>
+          <p class="text-sm">{{ 'settings.notifyPaymentDue' | transloco }}</p>
+          <p class="text-xs text-ink-muted mt-0.5">{{ 'settings.notifyPaymentDueSub' | transloco }}</p>
         </div>
         <input type="checkbox" [(ngModel)]="notifyPaymentDue" class="peer sr-only" />
-        <span class="relative h-6 w-11 shrink-0 mr-4 rounded-full bg-line transition peer-checked:bg-brand after:absolute after:top-0.5 after:right-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:-translate-x-5"></span>
+        <span class="relative h-6 w-11 shrink-0 ms-4 rounded-full bg-line transition peer-checked:bg-brand after:absolute after:top-0.5 after:start-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:ltr:translate-x-5 peer-checked:after:rtl:-translate-x-5"></span>
       </label>
     </div>
   </section>
@@ -100,21 +100,23 @@
     <div class="flex items-center gap-3 mb-5">
       <div class="grid h-11 w-11 place-items-center rounded-xl bg-brand-50 text-brand-700"><app-icon name="gear" /></div>
       <div>
-        <h2 class="font-bold">التفضيلات</h2>
-        <p class="text-xs text-ink-muted">اللغة والعملة الافتراضية</p>
+        <h2 class="font-bold">{{ 'settings.preferences' | transloco }}</h2>
+        <p class="text-xs text-ink-muted">{{ 'settings.preferencesSub' | transloco }}</p>
       </div>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <label class="block">
-        <span class="text-xs font-semibold text-ink-muted">اللغة</span>
-        <select class="mt-1.5 w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm focus:outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100">
-          <option selected>العربية</option>
+        <span class="text-xs font-semibold text-ink-muted">{{ 'settings.language' | transloco }}</span>
+        <select class="mt-1.5 w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm focus:outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
+                [ngModel]="lang.lang()" (ngModelChange)="lang.set($event)">
+          <option value="ar">العربية</option>
+          <option value="en">English</option>
         </select>
       </label>
       <label class="block">
-        <span class="text-xs font-semibold text-ink-muted">العملة</span>
+        <span class="text-xs font-semibold text-ink-muted">{{ 'settings.currency' | transloco }}</span>
         <select [(ngModel)]="currency" class="mt-1.5 w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm focus:outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100">
-          <option value="SAR">ريال سعودي (ر.س)</option>
+          <option value="SAR">{{ 'settings.sarOption' | transloco }}</option>
         </select>
       </label>
     </div>
@@ -129,8 +131,8 @@
         </svg>
       </div>
       <div>
-        <h2 class="font-bold">الحساب</h2>
-        <p class="text-xs text-ink-muted">إجراءات الحساب</p>
+        <h2 class="font-bold">{{ 'settings.account' | transloco }}</h2>
+        <p class="text-xs text-ink-muted">{{ 'settings.accountSub' | transloco }}</p>
       </div>
     </div>
     <button (click)="auth.signOut()"
@@ -138,7 +140,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
       </svg>
-      تسجيل الخروج
+      {{ 'layout.signOut' | transloco }}
     </button>
   </section>
 
@@ -159,16 +161,16 @@
       [class.bg-[#16A34A]]="saved">
       @if (saving) {
         <span class="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-        جاري الحفظ…
+        {{ 'common.saving' | transloco }}
       } @else if (saved) {
-        <app-icon name="check" cls="h-4 w-4" /> تم الحفظ
+        <app-icon name="check" cls="h-4 w-4" /> {{ 'settings.saved' | transloco }}
       } @else {
-        حفظ التغييرات
+        {{ 'settings.saveChanges' | transloco }}
       }
     </button>
     <button (click)="ngOnInit()" [disabled]="saving"
       class="rounded-xl border border-line py-2.5 px-6 text-sm font-semibold text-ink-muted hover:bg-canvas transition disabled:opacity-60">
-      إلغاء
+      {{ 'common.cancel' | transloco }}
     </button>
   </div>
 

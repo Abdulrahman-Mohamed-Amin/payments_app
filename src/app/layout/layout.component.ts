@@ -2,16 +2,18 @@ import { Component, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs/operators';
+import { TranslocoModule } from '@jsverse/transloco';
 import { IconComponent } from '../core/icon/icon.component';
 import { NAV_MAIN, NAV_OTHER } from './nav-data';
 import { PaymentsService } from '../core/payments.service';
 import { AuthService } from '../core/auth.service';
 import { ToastComponent } from '../core/toast/toast.component';
+import { LanguageService } from '../core/language.service';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, IconComponent, ToastComponent],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, IconComponent, ToastComponent, TranslocoModule],
   templateUrl: './layout.component.html',
 })
 export class LayoutComponent {
@@ -19,9 +21,12 @@ export class LayoutComponent {
   readonly navOther = NAV_OTHER;
   readonly payments = inject(PaymentsService);
   readonly auth = inject(AuthService);
+  readonly lang = inject(LanguageService);
 
-  title = 'لوحة التحكم';
-  subtitle = 'نظرة عامة على الوحدات والعقود';
+  /** Translation keys (resolved in the template via the transloco pipe, so they
+   *  re-render automatically on language change) — not pre-resolved strings. */
+  titleKey = 'nav.dashboard';
+  subtitleKey = 'layout.dashboardSubtitle';
   sidebarOpen = false;
   notifOpen = false;
 
@@ -48,8 +53,8 @@ export class LayoutComponent {
         }),
       )
       .subscribe((data) => {
-        this.title = (data['title'] as string) ?? this.title;
-        this.subtitle = (data['subtitle'] as string) ?? this.subtitle;
+        this.titleKey = (data['title'] as string) ?? this.titleKey;
+        this.subtitleKey = (data['subtitle'] as string) ?? this.subtitleKey;
         this.closeSidebar();
         this.notifOpen = false;
       });

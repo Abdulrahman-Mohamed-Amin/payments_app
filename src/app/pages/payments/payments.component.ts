@@ -2,10 +2,12 @@ import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { IconComponent } from '../../core/icon/icon.component';
 import { SupabaseService, ContractWithPayments } from '../../core/supabase.service';
 import { ToastService } from '../../core/toast.service';
 import { AuthService } from '../../core/auth.service';
+import { LanguageService } from '../../core/language.service';
 
 export interface InstallmentSummary {
   number: number;
@@ -27,22 +29,25 @@ export interface ProjectSummary {
 @Component({
   selector: 'app-payments',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, TranslocoModule],
   templateUrl: './payments.component.html',
 })
 export class PaymentsComponent implements OnInit {
   private supa = inject(SupabaseService);
   private router = inject(Router);
   private toast = inject(ToastService);
+  private transloco = inject(TranslocoService);
   readonly auth = inject(AuthService);
+  readonly lang = inject(LanguageService);
 
   private _projectsList = signal<{ id: string; name: string }[]>([]);
   private _contracts = signal<ContractWithPayments[]>([]);
   loading = signal(true);
 
   projects = computed<ProjectSummary[]>(() => {
+    this.lang.lang(); // re-run this computed when the UI language changes, so ordinal labels re-translate
     const now = new Date();
-    const LABELS = ['الأولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة'];
+    const LABELS = [1, 2, 3, 4, 5, 6].map(n => this.transloco.translate(`payments.ordinal${n}`));
     const map = new Map<string, ContractWithPayments[]>();
     for (const c of this._contracts()) {
       const list = map.get(c.project_name) ?? [];
@@ -106,9 +111,9 @@ export class PaymentsComponent implements OnInit {
     const ok = await this.supa.deleteProject(this.deleteTarget.id);
     if (ok) {
       this._projectsList.update(list => list.filter(p => p.id !== this.deleteTarget!.id));
-      this.toast.success('تم حذف المشروع', this.deleteTarget.name);
+      this.toast.success(this.transloco.translate('payments.deletedToast'), this.deleteTarget.name);
     } else {
-      this.toast.error('حدث خطأ', 'لم يتم حذف المشروع');
+      this.toast.error(this.transloco.translate('payments.errorToast'), this.transloco.translate('payments.deleteFailedSub'));
     }
     this.deleteTarget = null;
     this.deleting = false;
@@ -136,9 +141,9 @@ export class PaymentsComponent implements OnInit {
       this._projectsList.update(list => list.map(p => p.id === target.id ? { ...p, name: newName } : p));
       const contracts = await this.supa.loadContracts();
       this._contracts.set(contracts);
-      this.toast.success('تم تعديل اسم المشروع', newName);
+      this.toast.success(this.transloco.translate('payments.renamedToast'), newName);
     } else {
-      this.toast.error('حدث خطأ', 'لم يتم تعديل الاسم');
+      this.toast.error(this.transloco.translate('payments.errorToast'), this.transloco.translate('payments.renameFailedSub'));
     }
     this.renameSaving = false;
     this.cancelRenameProject();
@@ -165,11 +170,11 @@ export class PaymentsComponent implements OnInit {
     if (ok) {
       const projects = await this.supa.loadProjects();
       this._projectsList.set(projects);
-      this.toast.success('تم إنشاء المشروع', name);
+      this.toast.success(this.transloco.translate('payments.createdToast'), name);
       this.addOpen = false;
       this.router.navigate(['/payments', encodeURIComponent(name)]);
     } else {
-      this.toast.error('اسم المشروع موجود مسبقاً');
+      this.toast.error(this.transloco.translate('payments.alreadyExists'));
     }
   }
 

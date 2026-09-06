@@ -77,13 +77,23 @@ export class SupabaseService {
     return !error;
   }
 
-  /** Check for a duplicate client name OR unit code within a project — checked
-   *  independently, so a match on either one alone counts as a duplicate even if the
-   *  other field differs (e.g. same client name re-entered under a different/corrected
-   *  unit code is still flagged, not silently accepted as a second unit for that client).
-   *  Name is checked first: if both would match (different existing rows), 'name' wins.
-   *  Returns 'name' | 'unit' | null */
+  /** Check for a duplicate client within a project. Unit code is the real source of
+   *  truth for uniqueness (a physical unit can only be sold/contracted once) — so when
+   *  a unit code is given, only IT is checked, and a matching name under a *different*
+   *  unit code is allowed through (a client can legitimately buy more than one unit in
+   *  the same project). Name is checked only as a fallback when no unit code is given
+   *  at all, since that's the only signal left to catch an accidental re-entry.
+   *  Returns 'unit' | 'name' | null */
   async checkDuplicate(projectName: string, clientName: string, unitCode: string): Promise<'name' | 'unit' | null> {
+    if (unitCode.trim()) {
+      const { data: byUnit } = await this.db.from('contracts')
+        .select('id')
+        .eq('project_name', projectName)
+        .filter('fields->>unit_code', 'ilike', unitCode.trim())
+        .limit(1);
+      return byUnit?.length ? 'unit' : null;
+    }
+
     if (clientName.trim()) {
       const { data: byName } = await this.db.from('contracts')
         .select('id')
@@ -91,15 +101,6 @@ export class SupabaseService {
         .ilike('client_name', clientName.trim())
         .limit(1);
       if (byName?.length) return 'name';
-    }
-
-    if (unitCode.trim()) {
-      const { data: byUnit } = await this.db.from('contracts')
-        .select('id')
-        .eq('project_name', projectName)
-        .filter('fields->>unit_code', 'ilike', unitCode.trim())
-        .limit(1);
-      if (byUnit?.length) return 'unit';
     }
 
     return null;

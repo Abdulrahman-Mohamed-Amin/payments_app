@@ -1,17 +1,20 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TranslocoModule } from '@jsverse/transloco';
 import { IconComponent } from '../../core/icon/icon.component';
 import { AuthService } from '../../core/auth.service';
+import { LanguageService } from '../../core/language.service';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, TranslocoModule],
   templateUrl: './settings.component.html',
 })
 export class SettingsComponent implements OnInit {
   readonly auth = inject(AuthService);
+  readonly lang = inject(LanguageService);
 
   name = '';
   company = '';

@@ -16,27 +16,27 @@ export const routes: Routes = [
       {
         path: 'dashboard',
         loadComponent: () => import('./pages/dashboard/dashboard.component').then((m) => m.DashboardComponent),
-        data: { title: 'لوحة التحكم', subtitle: 'نظرة عامة على الوحدات والعقود' },
+        data: { title: 'nav.dashboard', subtitle: 'layout.dashboardSubtitle' },
       },
       {
         path: 'payments',
         loadComponent: () => import('./pages/payments/payments.component').then((m) => m.PaymentsComponent),
-        data: { title: 'الدفعات', subtitle: 'متابعة دفعات العملاء ومواعيد الاستحقاق' },
+        data: { title: 'nav.payments', subtitle: 'layout.paymentsSubtitle' },
       },
       {
         path: 'payments/:project',
         loadComponent: () => import('./pages/payments/payments-detail.component').then((m) => m.PaymentsDetailComponent),
-        data: { title: 'تفاصيل المشروع', subtitle: 'دفعات عملاء المشروع' },
+        data: { title: 'layout.projectDetailsTitle', subtitle: 'layout.projectDetailsSubtitle' },
       },
       {
         path: 'generate',
         loadComponent: () => import('./pages/generate/generate.component').then((m) => m.GenerateComponent),
-        data: { title: 'إنشاء الوثائق', subtitle: 'توليد العقود وإشعارات الدفع' },
+        data: { title: 'nav.generate', subtitle: 'layout.generateSubtitle' },
       },
       {
         path: 'settings',
         loadComponent: () => import('./pages/settings/settings.component').then((m) => m.SettingsComponent),
-        data: { title: 'الإعدادات', subtitle: 'تخصيص الحساب والتفضيلات' },
+        data: { title: 'nav.settings', subtitle: 'layout.settingsSubtitle' },
       },
     ],
   },

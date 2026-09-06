@@ -9,7 +9,7 @@
         ? 'bg-brand text-white border-brand shadow-card'
         : 'bg-white text-ink-muted border-line hover:bg-canvas hover:text-ink'"
     >
-      <app-icon name="doc" cls="h-4 w-4" /> إنشاء العقود
+      <app-icon name="doc" cls="h-4 w-4" /> {{ 'generate.tabContracts' | transloco }}
     </button>
     <button
       (click)="activeTab = 'notifications'"
@@ -18,7 +18,7 @@
         ? 'bg-brand text-white border-brand shadow-card'
         : 'bg-white text-ink-muted border-line hover:bg-canvas hover:text-ink'"
     >
-      <app-icon name="bell" cls="h-4 w-4" /> الإشعارات
+      <app-icon name="bell" cls="h-4 w-4" /> {{ 'generate.tabNotifications' | transloco }}
     </button>
   </div>
 
@@ -31,7 +31,7 @@
     <!-- Upload template -->
     <div class="rounded-2xl bg-white border border-line shadow-card p-6 anim-rise">
       <h2 class="flex items-center gap-2 text-sm font-bold text-brand-700 mb-4">
-        <app-icon name="doc" cls="h-4 w-4" /> رفع قالب العقد
+        <app-icon name="doc" cls="h-4 w-4" /> {{ 'generate.uploadContractTemplate' | transloco }}
       </h2>
 
       <input #cFileInput type="file" accept=".docx" class="hidden" (change)="cFileChange($event)">
@@ -50,9 +50,9 @@
           </div>
           <div>
             <p class="text-sm font-semibold text-ink">
-              اسحب الملف هنا أو <span class="text-brand">اضغط للاختيار</span>
+              {{ 'generate.dropFileHere' | transloco }} <span class="text-brand">{{ 'generate.clickToChoose' | transloco }}</span>
             </p>
-            <p class="text-xs text-ink-faint mt-1">ملفات Word فقط (.docx)</p>
+            <p class="text-xs text-ink-faint mt-1">{{ 'generate.wordFilesOnly' | transloco }}</p>
           </div>
         </div>
       } @else {
@@ -61,7 +61,7 @@
             <app-icon name="check" cls="h-4 w-4" /> {{ cTemplateName }}
           </span>
           <button (click)="clearContractTemplate()" class="text-xs text-ink-muted hover:text-[#DC2626] transition">
-            إزالة
+            {{ 'generate.remove' | transloco }}
           </button>
         </div>
       }
@@ -70,28 +70,28 @@
     <!-- Fixed fields (visible after template upload) -->
     @if (cTemplateFile) {
       <div class="rounded-2xl bg-white border border-line shadow-card p-6 anim-rise">
-        <h2 class="text-sm font-bold text-brand-700 mb-4">الحقول الأساسية</h2>
+        <h2 class="text-sm font-bold text-brand-700 mb-4">{{ 'generate.basicFields' | transloco }}</h2>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label class="block text-xs font-semibold mb-1.5" [class.text-[#DC2626]]="cUnitPriceError" [class.text-ink-muted]="!cUnitPriceError">سعر الوحدة</label>
+            <label class="block text-xs font-semibold mb-1.5" [class.text-[#DC2626]]="cUnitPriceError" [class.text-ink-muted]="!cUnitPriceError">{{ 'generate.unitPrice' | transloco }}</label>
             <input
               type="number" [(ngModel)]="cUnitPrice" (input)="updatePreview(); cUnitPriceError = false"
-              placeholder="مثال: 500000"
+              [placeholder]="'generate.unitPriceExample' | transloco"
               class="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none transition"
               [ngClass]="cUnitPriceError ? 'border-[#FCA5A5] focus:border-[#EF4444]' : 'border-line focus:border-brand'"
             >
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1.5" [class.text-[#DC2626]]="cFirstPaymentError" [class.text-ink-muted]="!cFirstPaymentError">الدفعة الأولى</label>
+            <label class="block text-xs font-semibold mb-1.5" [class.text-[#DC2626]]="cFirstPaymentError" [class.text-ink-muted]="!cFirstPaymentError">{{ 'generate.firstPayment' | transloco }}</label>
             <input
               type="number" [(ngModel)]="cFirstPayment" (input)="updatePreview(); cFirstPaymentError = false"
-              placeholder="مثال: 100000"
+              [placeholder]="'generate.firstPaymentExample' | transloco"
               class="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none transition"
               [ngClass]="cFirstPaymentError ? 'border-[#FCA5A5] focus:border-[#EF4444]' : 'border-line focus:border-brand'"
             >
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1.5" [class.text-[#DC2626]]="cContractDateError" [class.text-ink-muted]="!cContractDateError">تاريخ العقد</label>
+            <label class="block text-xs font-semibold mb-1.5" [class.text-[#DC2626]]="cContractDateError" [class.text-ink-muted]="!cContractDateError">{{ 'generate.contractDate' | transloco }}</label>
             <input
               type="date" [(ngModel)]="cContractDate" (input)="updatePreview(); cContractDateError = false"
               class="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none transition"
@@ -100,17 +100,17 @@
           </div>
           <div class="sm:col-span-2">
             <label class="block text-xs font-semibold mb-1.5" [class.text-[#DC2626]]="cProjectError" [class.text-ink-muted]="!cProjectError">
-              المشروع <span class="text-[#DC2626]">*</span>
+              {{ 'generate.project' | transloco }} <span class="text-[#DC2626]">*</span>
             </label>
             @if (projectNames.length === 0) {
               <div class="rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] px-4 py-2.5 text-sm text-[#DC2626]">
-                لا توجد مشاريع — أنشئ مشروعاً أولاً من قسم الدفعات.
+                {{ 'generate.noProjects' | transloco }}
               </div>
             } @else {
               <select [(ngModel)]="selectedProject" (change)="cProjectError = false"
                 class="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none transition"
                 [ngClass]="cProjectError ? 'border-[#FCA5A5] focus:border-[#EF4444]' : 'border-line focus:border-brand'">
-                <option value="" disabled>— اختر مشروعاً —</option>
+                <option value="" disabled>{{ 'generate.chooseProject' | transloco }}</option>
                 @for (p of projectNames; track p) {
                   <option [value]="p">{{ p }}</option>
                 }
@@ -122,9 +122,9 @@
 
       <!-- Dynamic template fields -->
       <div class="rounded-2xl bg-white border border-line shadow-card p-6 anim-rise">
-        <h2 class="text-sm font-bold text-brand-700 mb-4">حقول القالب</h2>
+        <h2 class="text-sm font-bold text-brand-700 mb-4">{{ 'generate.templateFields' | transloco }}</h2>
         @if (cDynamicFields.length === 0) {
-          <p class="text-sm text-ink-muted">لا توجد متغيرات إضافية في القالب.</p>
+          <p class="text-sm text-ink-muted">{{ 'generate.noExtraVars' | transloco }}</p>
         } @else {
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             @for (f of cDynamicFields; track f.varName) {
@@ -137,7 +137,7 @@
                   [ngClass]="f.error ? 'border-[#FCA5A5] focus:border-[#EF4444]' : 'border-line focus:border-brand'"
                 >
                 @if (f.error) {
-                  <p class="text-xs text-[#DC2626] mt-1">هذا الحقل مطلوب</p>
+                  <p class="text-xs text-[#DC2626] mt-1">{{ 'generate.fieldRequired' | transloco }}</p>
                 }
               </div>
             }
@@ -148,13 +148,13 @@
       <!-- Computed values preview -->
       @if (cShowPreview) {
         <div class="rounded-2xl bg-white border border-line shadow-card p-6 anim-rise">
-          <h2 class="text-sm font-bold text-brand-700 mb-4">معاينة القيم المحسوبة</h2>
+          <h2 class="text-sm font-bold text-brand-700 mb-4">{{ 'generate.computedPreview' | transloco }}</h2>
           <div class="rounded-xl border border-line overflow-hidden">
             <table class="w-full text-sm">
               <thead>
                 <tr class="bg-canvas border-b border-line">
-                  <th class="text-right px-4 py-2.5 text-xs font-semibold text-ink-muted">المتغير</th>
-                  <th class="text-right px-4 py-2.5 text-xs font-semibold text-ink-muted">القيمة</th>
+                  <th class="text-start px-4 py-2.5 text-xs font-semibold text-ink-muted">{{ 'generate.variable' | transloco }}</th>
+                  <th class="text-start px-4 py-2.5 text-xs font-semibold text-ink-muted">{{ 'generate.value' | transloco }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -179,10 +179,10 @@
       <!-- Notification template (optional — applies to both single and bulk) -->
       <div class="rounded-2xl bg-white border border-line shadow-card p-6 anim-rise">
         <h2 class="flex items-center gap-2 text-sm font-bold text-brand-700 mb-1">
-          <app-icon name="bell" cls="h-4 w-4" /> قالب الإشعارات
-          <span class="text-xs font-normal text-ink-faint">(اختياري)</span>
+          <app-icon name="bell" cls="h-4 w-4" /> {{ 'generate.notifTemplateTitle' | transloco }}
+          <span class="text-xs font-normal text-ink-faint">{{ 'generate.optional' | transloco }}</span>
         </h2>
-        <p class="text-xs text-ink-faint mb-4">عند رفعه يُولَّد إشعار لكل دفعة من الدفعة 2 إلى 6 — يشتغل مع العقد الفردي والمجمّع</p>
+        <p class="text-xs text-ink-faint mb-4">{{ 'generate.notifTemplateHint' | transloco }}</p>
         <input #cNotifInput type="file" accept=".docx" class="hidden" (change)="cNotifChange($event)">
         @if (!cNotifName) {
           <div
@@ -193,15 +193,15 @@
             (dragleave)="cNotifDragLeave()"
             (drop)="cNotifDrop($event)"
           >
-            <span class="text-ink-muted">اسحب قالب الإشعار هنا أو</span>
-            <span class="text-brand font-semibold">اضغط للاختيار</span>
+            <span class="text-ink-muted">{{ 'generate.dropNotifTemplate' | transloco }}</span>
+            <span class="text-brand font-semibold">{{ 'generate.clickToChoose' | transloco }}</span>
           </div>
         } @else {
           <div class="flex items-center justify-between rounded-xl bg-brand-50 border border-brand-100 px-4 py-2.5">
             <span class="flex items-center gap-2 text-sm font-semibold text-brand-700">
               <app-icon name="check" cls="h-4 w-4" /> {{ cNotifName }}
             </span>
-            <button (click)="clearNotifFile()" class="text-xs text-ink-muted hover:text-[#DC2626] transition">إزالة</button>
+            <button (click)="clearNotifFile()" class="text-xs text-ink-muted hover:text-[#DC2626] transition">{{ 'generate.remove' | transloco }}</button>
           </div>
         }
       </div>
@@ -213,16 +213,16 @@
           [disabled]="cGenerating || cSaveStatus === 'saving'"
           class="w-full rounded-xl bg-brand py-3 text-sm font-semibold text-white hover:bg-brand-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {{ cGenerating ? 'جاري التوليد...' : cSaveStatus === 'saving' ? 'جاري الحفظ...' : (cNotifFile ? 'توليد العقد + الإشعارات وحفظ الدفعات' : 'توليد العقد وحفظ الدفعات') }}
+          {{ cGenerating ? ('generate.generating' | transloco) : cSaveStatus === 'saving' ? ('generate.saving' | transloco) : (cNotifFile ? ('generate.generateContractAndNotifs' | transloco) : ('generate.generateContractOnly' | transloco)) }}
         </button>
         @if (cSaveStatus === 'saved') {
           <p class="flex items-center gap-2 text-sm text-[#16A34A] font-medium">
-            <app-icon name="check" cls="h-4 w-4" /> تم حفظ العقد والدفعات في قاعدة البيانات
+            <app-icon name="check" cls="h-4 w-4" /> {{ 'generate.savedToDb' | transloco }}
           </p>
         }
         @if (cSaveStatus === 'error') {
           <p class="flex items-center gap-2 text-sm text-[#DC2626] font-medium">
-            <app-icon name="alert" cls="h-4 w-4" /> تعذّر الحفظ في قاعدة البيانات
+            <app-icon name="alert" cls="h-4 w-4" /> {{ 'generate.saveFailedDb' | transloco }}
           </p>
         }
       </div>
@@ -230,12 +230,12 @@
       <!-- Bulk Excel section -->
       <div class="rounded-2xl bg-white border border-line shadow-card p-6 anim-rise space-y-5">
         <h2 class="flex items-center gap-2 text-sm font-bold text-brand-700">
-          <app-icon name="doc" cls="h-4 w-4" /> توليد مجمّع من Excel
+          <app-icon name="doc" cls="h-4 w-4" /> {{ 'generate.bulkFromExcel' | transloco }}
         </h2>
 
         <!-- Excel file -->
         <div>
-          <p class="text-xs font-bold text-ink-muted mb-2">ملف Excel — كل صف = عميل واحد</p>
+          <p class="text-xs font-bold text-ink-muted mb-2">{{ 'generate.excelOneRowOneClient' | transloco }}</p>
           <input #cExcelInput type="file" accept=".xlsx,.xls" class="hidden" (change)="cExcelChange($event)">
           @if (!cExcelName) {
             <div
@@ -246,17 +246,17 @@
               (dragleave)="cExcelDragLeave()"
               (drop)="cExcelDrop($event)"
             >
-              <p class="text-sm text-ink">اسحب ملف Excel هنا أو <span class="text-brand font-semibold">اضغط للاختيار</span></p>
-              <p class="text-xs text-ink-faint">xlsx / xls — الصف الأول = أسماء الأعمدة</p>
+              <p class="text-sm text-ink">{{ 'generate.dropExcelHere' | transloco }} <span class="text-brand font-semibold">{{ 'generate.clickToChoose' | transloco }}</span></p>
+              <p class="text-xs text-ink-faint">{{ 'generate.excelFirstRowHeaders' | transloco }}</p>
             </div>
           } @else {
             <div class="rounded-xl bg-canvas border border-line p-4 mb-4">
               <p class="text-sm font-semibold text-ink">{{ cExcelName }}</p>
               <p class="text-xs text-ink-muted mt-1">
-                {{ cExcelRows.length }} صف
+                {{ cExcelRows.length }} {{ 'generate.rowsWord' | transloco }}
                 @if (cExcelCols.length) { · {{ cExcelCols.join(' · ') }} }
               </p>
-              <button (click)="clearContractExcel()" class="mt-2 text-xs text-ink-faint hover:text-[#DC2626] transition">إزالة الملف</button>
+              <button (click)="clearContractExcel()" class="mt-2 text-xs text-ink-faint hover:text-[#DC2626] transition">{{ 'generate.removeFile' | transloco }}</button>
             </div>
 
             @if (cBulkStatus) {
@@ -270,7 +270,7 @@
               [disabled]="cBulkGenerating"
               class="w-full rounded-xl bg-brand py-3 text-sm font-semibold text-white hover:bg-brand-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {{ cBulkGenerating ? cBulkStatus || 'جاري التوليد...' : 'توليد الكل وتنزيل ZIP' }}
+              {{ cBulkGenerating ? (cBulkStatus || ('generate.generating' | transloco)) : ('generate.generateAllDownloadZip' | transloco) }}
             </button>
           }
         </div>
@@ -286,7 +286,7 @@
     <!-- Upload template -->
     <div class="rounded-2xl bg-white border border-line shadow-card p-6 anim-rise">
       <h2 class="flex items-center gap-2 text-sm font-bold text-brand-700 mb-4">
-        <app-icon name="bell" cls="h-4 w-4" /> رفع قالب الإشعار
+        <app-icon name="bell" cls="h-4 w-4" /> {{ 'generate.uploadNotifTemplate' | transloco }}
       </h2>
 
       <input #nFileInput type="file" accept=".docx" class="hidden" (change)="nFileChange($event)">
@@ -305,9 +305,9 @@
           </div>
           <div>
             <p class="text-sm font-semibold text-ink">
-              اسحب الملف هنا أو <span class="text-brand">اضغط للاختيار</span>
+              {{ 'generate.dropFileHere' | transloco }} <span class="text-brand">{{ 'generate.clickToChoose' | transloco }}</span>
             </p>
-            <p class="text-xs text-ink-faint mt-1">ملفات Word فقط (.docx)</p>
+            <p class="text-xs text-ink-faint mt-1">{{ 'generate.wordFilesOnly' | transloco }}</p>
           </div>
         </div>
       } @else {
@@ -316,7 +316,7 @@
             <app-icon name="check" cls="h-4 w-4" /> {{ nTemplateName }}
           </span>
           <button (click)="clearNotifTemplate()" class="text-xs text-ink-muted hover:text-[#DC2626] transition">
-            إزالة
+            {{ 'generate.remove' | transloco }}
           </button>
         </div>
       }
@@ -327,7 +327,7 @@
       <!-- Dynamic template fields -->
       @if (nDynamicFields.length > 0) {
         <div class="rounded-2xl bg-white border border-line shadow-card p-6 anim-rise">
-          <h2 class="text-sm font-bold text-brand-700 mb-4">حقول القالب</h2>
+          <h2 class="text-sm font-bold text-brand-700 mb-4">{{ 'generate.templateFields' | transloco }}</h2>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             @for (f of nDynamicFields; track f.varName) {
               <div>
@@ -339,7 +339,7 @@
                   [ngClass]="f.error ? 'border-[#FCA5A5] focus:border-[#EF4444]' : 'border-line focus:border-brand'"
                 >
                 @if (f.error) {
-                  <p class="text-xs text-[#DC2626] mt-1">هذا الحقل مطلوب</p>
+                  <p class="text-xs text-[#DC2626] mt-1">{{ 'generate.fieldRequired' | transloco }}</p>
                 }
               </div>
             }
@@ -354,14 +354,14 @@
           [disabled]="nGenerating"
           class="w-full rounded-xl bg-brand py-3 text-sm font-semibold text-white hover:bg-brand-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {{ nGenerating ? 'جاري التوليد...' : 'توليد الإشعار' }}
+          {{ nGenerating ? ('generate.generating' | transloco) : ('generate.generateNotifBtn' | transloco) }}
         </button>
       </div>
 
       <!-- Bulk from Excel -->
       <div class="rounded-2xl bg-white border border-line shadow-card p-6 anim-rise space-y-4">
-        <h2 class="text-sm font-bold text-brand-700">توليد مجمّع من Excel</h2>
-        <p class="text-xs text-ink-muted">الصف الأول = أسماء المتغيرات · كل صف بعده = ملف واحد</p>
+        <h2 class="text-sm font-bold text-brand-700">{{ 'generate.bulkFromExcel' | transloco }}</h2>
+        <p class="text-xs text-ink-muted">{{ 'generate.notifVarsFirstRow' | transloco }}</p>
 
         <input #nExcelInput type="file" accept=".xlsx,.xls" class="hidden" (change)="nExcelChange($event)">
         @if (!nExcelName) {
@@ -373,17 +373,17 @@
             (dragleave)="nExcelDragLeave()"
             (drop)="nExcelDrop($event)"
           >
-            <p class="text-sm text-ink">اسحب ملف Excel هنا أو <span class="text-brand font-semibold">اضغط للاختيار</span></p>
+            <p class="text-sm text-ink">{{ 'generate.dropExcelHere' | transloco }} <span class="text-brand font-semibold">{{ 'generate.clickToChoose' | transloco }}</span></p>
             <p class="text-xs text-ink-faint">xlsx / xls</p>
           </div>
         } @else {
           <div class="rounded-xl bg-canvas border border-line p-4">
             <p class="text-sm font-semibold text-ink">{{ nExcelName }}</p>
             <p class="text-xs text-ink-muted mt-1">
-              {{ nExcelRows.length }} صف
+              {{ nExcelRows.length }} {{ 'generate.rowsWord' | transloco }}
               @if (nExcelCols.length) { · {{ nExcelCols.join(' · ') }} }
             </p>
-            <button (click)="clearNotifExcel()" class="mt-2 text-xs text-ink-faint hover:text-[#DC2626] transition">إزالة الملف</button>
+            <button (click)="clearNotifExcel()" class="mt-2 text-xs text-ink-faint hover:text-[#DC2626] transition">{{ 'generate.removeFile' | transloco }}</button>
           </div>
 
           @if (nBulkStatus) {
@@ -397,7 +397,7 @@
             [disabled]="nBulkGenerating"
             class="w-full rounded-xl bg-brand py-3 text-sm font-semibold text-white hover:bg-brand-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {{ nBulkGenerating ? nBulkStatus || 'جاري التوليد...' : 'توليد الكل وتنزيل ZIP' }}
+            {{ nBulkGenerating ? (nBulkStatus || ('generate.generating' | transloco)) : ('generate.generateAllDownloadZip' | transloco) }}
           </button>
         }
       </div>

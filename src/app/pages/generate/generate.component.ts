@@ -1,6 +1,7 @@
 import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { IconComponent } from '../../core/icon/icon.component';
 import { SupabaseService } from '../../core/supabase.service';
 import { ToastService } from '../../core/toast.service';
@@ -63,12 +64,13 @@ const LABEL_MAP: Record<string, string> = {
 @Component({
   selector: 'app-generate',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, TranslocoModule],
   templateUrl: './generate.component.html',
 })
 export class GenerateComponent implements OnInit {
   private supa = inject(SupabaseService);
   private toast = inject(ToastService);
+  private transloco = inject(TranslocoService);
   activeTab: Tab = 'contracts';
   cSaving = false;
   cSaveStatus: 'idle' | 'saving' | 'saved' | 'error' = 'idle';
@@ -280,14 +282,14 @@ export class GenerateComponent implements OnInit {
   cClickUpload() { this.cFileInputRef.nativeElement.click(); }
 
   async handleContractFile(file: File) {
-    if (!file.name.endsWith('.docx')) { this.toast.error('يرجى اختيار ملف Word بصيغة .docx'); return; }
+    if (!file.name.endsWith('.docx')) { this.toast.error(this.transloco.translate('generate.chooseWordDocx')); return; }
     this.cTemplateFile = file;
     this.cTemplateName = file.name;
     try {
       this.cDynamicFields = this.toFields(await this.parseDocxVars(file, true));
       this.updatePreview();
     } catch (err: any) {
-      this.toast.error('تعذّر قراءة القالب: ' + (err.message || err));
+      this.toast.error(this.transloco.translate('generate.templateReadError') + (err.message || err));
       this.cTemplateFile = null; this.cTemplateName = '';
     }
   }
@@ -327,10 +329,10 @@ export class GenerateComponent implements OnInit {
     const bd = this.parseISO(this.cContractDate);
     const res = this.computeReserved(up, fp, bd);
     const rows: PreviewRow[] = [
-      { key: 'الكلمات العربية', value: '', isHeader: true },
+      { key: this.transloco.translate('generate.previewWordsSection'), value: '', isHeader: true },
       { key: '{{unit_price_text}}', value: res['unit_price_text'] },
       { key: '{{remaining_text}}', value: res['remaining_text'] },
-      { key: 'جدول الأقساط', value: '', isHeader: true },
+      { key: this.transloco.translate('generate.previewInstallmentsSection'), value: '', isHeader: true },
     ];
     for (let i = 1; i <= 6; i++) {
       rows.push({ key: `{{p${i}_amount}}`, value: res[`p${i}_amount`] });
@@ -352,12 +354,12 @@ export class GenerateComponent implements OnInit {
       && !this.cProjectError && this.cDynamicFields.every(f => !f.error);
     if (!valid) {
       const missing: string[] = [];
-      if (this.cUnitPriceError) missing.push('سعر الوحدة');
-      if (this.cFirstPaymentError) missing.push('الدفعة الأولى');
-      if (this.cContractDateError) missing.push('تاريخ العقد');
-      if (this.cProjectError) missing.push('المشروع');
-      if (this.cDynamicFields.some(f => f.error)) missing.push('حقول القالب');
-      this.toast.error('حقول فارغة: ' + missing.join(' · '));
+      if (this.cUnitPriceError) missing.push(this.transloco.translate('generate.unitPrice'));
+      if (this.cFirstPaymentError) missing.push(this.transloco.translate('generate.firstPayment'));
+      if (this.cContractDateError) missing.push(this.transloco.translate('generate.contractDate'));
+      if (this.cProjectError) missing.push(this.transloco.translate('generate.project'));
+      if (this.cDynamicFields.some(f => f.error)) missing.push(this.transloco.translate('generate.templateFields'));
+      this.toast.error(this.transloco.translate('generate.emptyFieldsPrefix') + missing.join(' · '));
       return;
     }
 
@@ -379,9 +381,7 @@ export class GenerateComponent implements OnInit {
         this.selectedProject, dynamic['name'] || '', dynamic['unit_code'] || ''
       );
       if (dup) {
-        this.toast.error(dup === 'name'
-          ? 'العميل مسجّل مسبقاً في هذا المشروع — لم يُنشأ عقد جديد'
-          : 'رقم الوحدة مسجّل مسبقاً في هذا المشروع — لم يُنشأ عقد جديد');
+        this.toast.error(this.transloco.translate(dup === 'name' ? 'generate.nameTakenNoContract' : 'generate.unitTakenNoContract'));
         this.cGenerating = false;
         return;
       }
@@ -423,10 +423,10 @@ export class GenerateComponent implements OnInit {
         installments,
       });
       this.cSaveStatus = 'error' in result ? 'error' : 'saved';
-      if ('error' in result) this.toast.error('تعذّر الحفظ في قاعدة البيانات: ' + result.error);
+      if ('error' in result) this.toast.error(this.transloco.translate('generate.dbSaveError') + result.error);
       setTimeout(() => { this.cSaveStatus = 'idle'; }, 3000);
     } catch (err: any) {
-      this.toast.error('خطأ في معالجة القالب: ' + (err.message || err));
+      this.toast.error(this.transloco.translate('generate.templateProcessError') + (err.message || err));
     }
     this.cGenerating = false;
   }
@@ -447,7 +447,7 @@ export class GenerateComponent implements OnInit {
   cClickNotif() { this.cNotifInputRef?.nativeElement.click(); }
 
   handleNotifFile(file: File) {
-    if (!file.name.endsWith('.docx')) { this.toast.error('قالب الإشعارات يجب أن يكون .docx'); return; }
+    if (!file.name.endsWith('.docx')) { this.toast.error(this.transloco.translate('generate.notifTemplateMustBeDocx')); return; }
     this.cNotifFile = file; this.cNotifName = file.name;
   }
 
@@ -515,17 +515,23 @@ export class GenerateComponent implements OnInit {
   cClickExcel() { this.cExcelInputRef?.nativeElement.click(); }
 
   async handleContractExcel(file: File) {
-    if (!file.name.match(/\.(xlsx|xls)$/i)) { this.toast.error('يرجى اختيار ملف Excel بصيغة .xlsx أو .xls'); return; }
+    if (!file.name.match(/\.(xlsx|xls)$/i)) { this.toast.error(this.transloco.translate('detail.unsupportedFileSub')); return; }
     try {
       const extraKeywords = this.cDynamicFields.flatMap(f => [f.varName, f.label]);
       const { rows, cols, sheetNames, usedSheet } = await this.parseExcel(file, extraKeywords);
       this.cExcelFile = file; this.cExcelName = file.name; this.cExcelRows = rows; this.cExcelCols = cols;
       if (!rows.length) {
-        this.toast.error('لم يتم العثور على بيانات صالحة في ملف الإكسل', sheetNames.length > 1 ? `الأوراق الموجودة: ${sheetNames.join('، ')}` : undefined);
+        this.toast.error(
+          this.transloco.translate('generate.noValidExcelData'),
+          sheetNames.length > 1 ? this.transloco.translate('generate.sheetsFoundPrefix') + sheetNames.join('، ') : undefined
+        );
       } else if (sheetNames.length > 1) {
-        this.toast.info(`تم قراءة ${rows.length} صف من ورقة "${usedSheet}"`, `باقي الأوراق (${sheetNames.filter(s => s !== usedSheet).join('، ')}) لم تُقرأ`);
+        this.toast.info(
+          this.transloco.translate('generate.readRowsFromSheet', { rows: rows.length, sheet: usedSheet }),
+          this.transloco.translate('generate.remainingSheetsNotRead', { sheets: sheetNames.filter(s => s !== usedSheet).join('، ') })
+        );
       }
-    } catch (err: any) { this.toast.error('خطأ في قراءة ملف Excel: ' + (err.message || err)); }
+    } catch (err: any) { this.toast.error(this.transloco.translate('generate.excelReadError') + (err.message || err)); }
   }
 
   clearContractExcel() { this.cExcelFile = null; this.cExcelName = ''; this.cExcelRows = []; this.cExcelCols = []; if (this.cExcelInputRef) this.cExcelInputRef.nativeElement.value = ''; }
@@ -534,8 +540,8 @@ export class GenerateComponent implements OnInit {
   async bulkGenerate() {
     if (!this.selectedProject) {
       this.cProjectError = true;
-      this.cError = 'اختر مشروعاً أولاً';
-      this.toast.error('اختر مشروعاً أولاً');
+      this.cError = this.transloco.translate('detail.pickProjectFirst');
+      this.toast.error(this.transloco.translate('detail.pickProjectFirst'));
       return;
     }
     if (!this.cTemplateFile || !this.cExcelRows.length) return;
@@ -569,8 +575,12 @@ export class GenerateComponent implements OnInit {
           if (!clientName) missCounts.name++;
           if (!up) missCounts.unit_price++;
           if (!bd) missCounts.contract_date++;
-          const miss = [!clientName && 'الاسم', !up && 'السعر', !bd && 'التاريخ'].filter(Boolean).join('، ');
-          this.cBulkStatus = `صف ${i + 1}/${total} — تخطّي (ناقص: ${miss})`;
+          const miss = [
+            !clientName && this.transloco.translate('generate.shortName'),
+            !up && this.transloco.translate('generate.shortPrice'),
+            !bd && this.transloco.translate('generate.shortDate'),
+          ].filter(Boolean).join('، ');
+          this.cBulkStatus = this.transloco.translate('generate.rowSkippedIncomplete', { i: i + 1, total, miss });
           continue;
         }
         dynamic['name'] = clientName;
@@ -584,8 +594,9 @@ export class GenerateComponent implements OnInit {
         );
         if (dup) {
           duplicateSkipped++;
-          duplicateDetails.push({ name: data['name'] || '', reason: dup === 'name' ? 'اسم مكرر' : 'وحدة مكررة' });
-          this.cBulkStatus = `عميل ${i + 1}/${total} — تخطّي (${dup === 'name' ? 'اسم مكرر' : 'وحدة مكررة'})`;
+          const reason = this.transloco.translate(dup === 'name' ? 'generate.dupNameShort' : 'generate.dupUnitShort');
+          duplicateDetails.push({ name: data['name'] || '', reason });
+          this.cBulkStatus = this.transloco.translate('generate.clientSkippedDup', { i: i + 1, total, reason });
           continue;
         }
 
@@ -596,19 +607,19 @@ export class GenerateComponent implements OnInit {
         const folder = `${num}_${label}/`;
 
         // ── توليد العقد والإشعارات ───────────────────────────────────────────
-        this.cBulkStatus = `عميل ${i + 1}/${total} — توليد العقد...`;
+        this.cBulkStatus = this.transloco.translate('generate.clientGeneratingContract', { i: i + 1, total });
         outputZip.file(folder + `${num}_عقد_${label}.docx`, this.renderDocx(templateBuf, data));
 
         if (notifBuf) {
           for (let pi = 2; pi <= 6; pi++) {
-            this.cBulkStatus = `عميل ${i + 1}/${total} — إشعار الدفعة ${INSTALL_NAMES_AR[pi]}...`;
+            this.cBulkStatus = this.transloco.translate('generate.clientGeneratingNotif', { i: i + 1, total, name: INSTALL_NAMES_AR[pi] });
             const notifData = { ...data, p_amount: reserved[`p${pi}_amount`], p_date: reserved[`p${pi}_date`], p_name: INSTALL_NAMES_AR[pi] };
             outputZip.file(folder + `اشعار_الدفعة_${INSTALL_NAMES_AR[pi]}.docx`, this.renderDocx(notifBuf, notifData));
           }
         }
 
         // ── حفظ في Supabase ──────────────────────────────────────────────────
-        this.cBulkStatus = `عميل ${i + 1}/${total} — حفظ الدفعات...`;
+        this.cBulkStatus = this.transloco.translate('generate.clientSavingPayments', { i: i + 1, total });
         const contractDateIso = bd
           ? `${bd.getFullYear()}-${String(bd.getMonth() + 1).padStart(2, '0')}-${String(bd.getDate()).padStart(2, '0')}`
           : '';
@@ -635,10 +646,10 @@ export class GenerateComponent implements OnInit {
       if (generated === 0) {
         // كل الصفوف اتخطّت (بيانات ناقصة أو تكرار) — لا نعمّل تنزيل ZIP فارغ بصمت
         const parts: string[] = [];
-        if (skippedIncomplete) parts.push(`بيانات ناقصة: ${skippedIncomplete}`);
-        if (duplicateSkipped) parts.push(`موجود بالفعل: ${duplicateSkipped}`);
-        this.cBulkStatus = `✗ لم يُنشأ أي عقد — ${parts.join(' · ')}`;
-        this.toast.error('لم يُنشأ أي عقد', parts.join(' · '));
+        if (skippedIncomplete) parts.push(this.transloco.translate('generate.missingDataCount', { count: skippedIncomplete }));
+        if (duplicateSkipped) parts.push(this.transloco.translate('generate.alreadyExistsCount', { count: duplicateSkipped }));
+        this.cBulkStatus = this.transloco.translate('generate.noContractGeneratedStatus', { parts: parts.join(' · ') });
+        this.toast.error(this.transloco.translate('generate.noContractGenerated'), parts.join(' · '));
         this.cBulkGenerating = false;
         return;
       }
@@ -648,25 +659,27 @@ export class GenerateComponent implements OnInit {
       this.downloadBlob(zipBlob, fname);
       if (skippedIncomplete > 0 || duplicateSkipped > 0) {
         const parts: string[] = [];
-        if (skippedIncomplete) parts.push(`بيانات ناقصة: ${skippedIncomplete}`);
-        if (duplicateSkipped) parts.push(`موجود بالفعل: ${duplicateSkipped}`);
-        this.cBulkStatus = `✓ ${generated} عميل تم تنزيله — ${parts.join(' · ')}`;
+        if (skippedIncomplete) parts.push(this.transloco.translate('generate.missingDataCount', { count: skippedIncomplete }));
+        if (duplicateSkipped) parts.push(this.transloco.translate('generate.alreadyExistsCount', { count: duplicateSkipped }));
+        this.cBulkStatus = this.transloco.translate('generate.downloadedCountStatus', { count: generated, parts: parts.join(' · ') });
         // رسائل التخطّي تبقى ظاهرة (لا تختفي تلقائياً) لأن المستخدم قد لا يلاحظها خلال ثوانٍ معدودة
         if (skippedIncomplete) {
-          const detail = `الاسم مفقود: ${missCounts.name}، السعر مفقود: ${missCounts.unit_price}، التاريخ مفقود: ${missCounts.contract_date}`;
-          this.toast.error(`تم تخطّي ${skippedIncomplete} (بيانات ناقصة)`, detail);
+          const detail = this.transloco.translate('generate.missingDetail', {
+            name: missCounts.name, price: missCounts.unit_price, date: missCounts.contract_date,
+          });
+          this.toast.error(this.transloco.translate('generate.skippedIncompleteToast', { count: skippedIncomplete }), detail);
         }
         if (duplicateSkipped) {
           const names = duplicateDetails.slice(0, 5).map(d => `${d.name} (${d.reason})`).join('، ')
-            + (duplicateDetails.length > 5 ? ` +${duplicateDetails.length - 5} آخرين` : '');
-          this.toast.error(`${duplicateSkipped} عميل موجود بالفعل في المشروع`, names);
+            + (duplicateDetails.length > 5 ? this.transloco.translate('generate.andOthers', { count: duplicateDetails.length - 5 }) : '');
+          this.toast.error(this.transloco.translate('generate.duplicateInProjectToast', { count: duplicateSkipped }), names);
         }
       } else {
-        this.cBulkStatus = `✓ ${total} عميل — تم التنزيل`;
+        this.cBulkStatus = this.transloco.translate('generate.allDownloadedStatus', { count: total });
         setTimeout(() => { this.cBulkStatus = ''; }, 5000);
       }
     } catch (err: any) {
-      this.toast.error('خطأ أثناء التوليد: ' + (err.message || err));
+      this.toast.error(this.transloco.translate('generate.generationError') + (err.message || err));
       this.cBulkStatus = '';
     }
     this.cBulkGenerating = false;
@@ -699,12 +712,12 @@ export class GenerateComponent implements OnInit {
   nClickUpload() { this.nFileInputRef.nativeElement.click(); }
 
   async handleNotifTemplate(file: File) {
-    if (!file.name.endsWith('.docx')) { this.toast.error('يرجى اختيار ملف Word بصيغة .docx'); return; }
+    if (!file.name.endsWith('.docx')) { this.toast.error(this.transloco.translate('generate.chooseWordDocx')); return; }
     this.nTemplateFile = file; this.nTemplateName = file.name;
     try {
       this.nDynamicFields = this.toFields(await this.parseDocxVars(file, false));
     } catch (err: any) {
-      this.toast.error('تعذّر قراءة القالب: ' + (err.message || err));
+      this.toast.error(this.transloco.translate('generate.templateReadError') + (err.message || err));
       this.nTemplateFile = null; this.nTemplateName = '';
     }
   }
@@ -722,7 +735,7 @@ export class GenerateComponent implements OnInit {
     if (!this.nTemplateFile) return;
     let valid = true;
     this.nDynamicFields.forEach(f => { f.error = !f.value.trim(); if (f.error) valid = false; });
-    if (!valid) { this.toast.error('يرجى تعبئة جميع الحقول المطلوبة'); return; }
+    if (!valid) { this.toast.error(this.transloco.translate('generate.fillRequiredFields')); return; }
 
     this.nGenerating = true;
     try {
@@ -736,7 +749,7 @@ export class GenerateComponent implements OnInit {
       const name = (data['name'] || data['اسم_العميل'] || 'اشعار').replace(/\s+/g, '_');
       this.downloadBlob(out, `اشعار_${name}.docx`);
     } catch (err: any) {
-      this.toast.error('خطأ في معالجة القالب: ' + (err.message || err));
+      this.toast.error(this.transloco.translate('generate.templateProcessError') + (err.message || err));
     }
     this.nGenerating = false;
   }
@@ -749,17 +762,23 @@ export class GenerateComponent implements OnInit {
   nClickExcel() { this.nExcelInputRef?.nativeElement.click(); }
 
   async handleNotifExcel(file: File) {
-    if (!file.name.match(/\.(xlsx|xls)$/i)) { this.toast.error('يرجى اختيار ملف Excel بصيغة .xlsx أو .xls'); return; }
+    if (!file.name.match(/\.(xlsx|xls)$/i)) { this.toast.error(this.transloco.translate('detail.unsupportedFileSub')); return; }
     try {
       const extraKeywords = this.nDynamicFields.flatMap(f => [f.varName, f.label]);
       const { rows, cols, sheetNames, usedSheet } = await this.parseExcel(file, extraKeywords);
       this.nExcelFile = file; this.nExcelName = file.name; this.nExcelRows = rows; this.nExcelCols = cols;
       if (!rows.length) {
-        this.toast.error('لم يتم العثور على بيانات صالحة في ملف الإكسل', sheetNames.length > 1 ? `الأوراق الموجودة: ${sheetNames.join('، ')}` : undefined);
+        this.toast.error(
+          this.transloco.translate('generate.noValidExcelData'),
+          sheetNames.length > 1 ? this.transloco.translate('generate.sheetsFoundPrefix') + sheetNames.join('، ') : undefined
+        );
       } else if (sheetNames.length > 1) {
-        this.toast.info(`تم قراءة ${rows.length} صف من ورقة "${usedSheet}"`, `باقي الأوراق (${sheetNames.filter(s => s !== usedSheet).join('، ')}) لم تُقرأ`);
+        this.toast.info(
+          this.transloco.translate('generate.readRowsFromSheet', { rows: rows.length, sheet: usedSheet }),
+          this.transloco.translate('generate.remainingSheetsNotRead', { sheets: sheetNames.filter(s => s !== usedSheet).join('، ') })
+        );
       }
-    } catch (err: any) { this.toast.error('خطأ في قراءة ملف Excel: ' + (err.message || err)); }
+    } catch (err: any) { this.toast.error(this.transloco.translate('generate.excelReadError') + (err.message || err)); }
   }
 
   clearNotifExcel() { this.nExcelFile = null; this.nExcelName = ''; this.nExcelRows = []; this.nExcelCols = []; if (this.nExcelInputRef) this.nExcelInputRef.nativeElement.value = ''; }
@@ -774,7 +793,7 @@ export class GenerateComponent implements OnInit {
       const total = this.nExcelRows.length;
 
       for (let i = 0; i < total; i++) {
-        this.nBulkStatus = `جاري التوليد ${i + 1} / ${total}...`;
+        this.nBulkStatus = this.transloco.translate('generate.generatingProgress', { i: i + 1, total });
         const row = this.nExcelRows[i];
         const data: Record<string, string> = {};
         this.nDynamicFields.forEach(f => { data[f.varName] = this.pickRow(row, [f.varName, f.label]); });
@@ -787,10 +806,10 @@ export class GenerateComponent implements OnInit {
 
       const zipBlob = outputZip.generate({ type: 'blob', mimeType: 'application/zip' });
       this.downloadBlob(zipBlob, `اشعارات_${total}_ملف.zip`);
-      this.nBulkStatus = `✓ ${total} ملف — تم التنزيل`;
+      this.nBulkStatus = this.transloco.translate('generate.allFilesDownloaded', { count: total });
       setTimeout(() => { this.nBulkStatus = ''; }, 4000);
     } catch (err: any) {
-      this.toast.error('خطأ أثناء التوليد: ' + (err.message || err));
+      this.toast.error(this.transloco.translate('generate.generationError') + (err.message || err));
       this.nBulkStatus = '';
     }
     this.nBulkGenerating = false;

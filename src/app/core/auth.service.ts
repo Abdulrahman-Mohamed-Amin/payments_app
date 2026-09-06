@@ -31,7 +31,7 @@ export class AuthService {
       : `${username.trim()}@madain.sa`;
 
     const { data, error } = await this.supa.getClient().auth.signInWithPassword({ email, password });
-    if (error) return 'اسم المستخدم أو كلمة المرور غير صحيحة';
+    if (error) return 'login.invalidCredentials'; // transloco key — resolved by the caller
     this._session.set(data.session);
     return null;
   }

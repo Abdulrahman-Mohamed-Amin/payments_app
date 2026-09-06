@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { IconComponent } from '../../core/icon/icon.component';
 import { SupabaseService, ContractWithPayments, PaymentRow } from '../../core/supabase.service';
 import { ToastService } from '../../core/toast.service';
@@ -33,11 +34,12 @@ interface XlsxRow {
 @Component({
   selector: 'app-payments-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, TranslocoModule],
   templateUrl: './payments-detail.component.html',
 })
 export class PaymentsDetailComponent implements OnInit, OnDestroy {
   private supa = inject(SupabaseService);
+  private transloco = inject(TranslocoService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private toast = inject(ToastService);
@@ -133,9 +135,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
       this.projectName(), this.addName.trim(), this.addUnitCode.trim()
     );
     if (dup) {
-      this.toast.error(
-        dup === 'name' ? 'العميل مسجّل مسبقاً في هذا المشروع' : 'رقم الوحدة مسجّل مسبقاً في هذا المشروع'
-      );
+      this.toast.error(this.transloco.translate(dup === 'name' ? 'detail.nameTaken' : 'detail.unitTaken'));
       this.addSaving = false;
       return;
     }
@@ -166,12 +166,12 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     this.addSaving = false;
 
     if ('error' in result) {
-      this.toast.error('خطأ في الحفظ', result.error);
+      this.toast.error(this.transloco.translate('detail.saveError'), result.error);
     } else {
       // Reload contracts for this project
       const all = await this.supa.loadContracts();
       this.contracts.set(all.filter(c => c.project_name === this.projectName()));
-      this.toast.success('تمت الإضافة', this.addName.trim());
+      this.toast.success(this.transloco.translate('detail.addedToast'), this.addName.trim());
       this.addOpen = false;
     }
   }
@@ -222,7 +222,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
           payments: updatedPayments ?? c.payments,
         }
       ));
-      if (dateChanged) this.toast.success('تم التحديث', 'تم إعادة حساب تواريخ الدفعات');
+      if (dateChanged) this.toast.success(this.transloco.translate('detail.updatedToast'), this.transloco.translate('detail.datesRecalculated'));
     }
     this.editTarget = null;
     this.saving = false;
@@ -244,7 +244,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
 
   openXlsx() {
     if (!this.auth.canManagePayments) return;
-    if (!this.projectName()) { this.toast.error('اختر مشروعاً أولاً'); return; }
+    if (!this.projectName()) { this.toast.error(this.transloco.translate('detail.pickProjectFirst')); return; }
     this.xlsxRows = []; this.xlsxStatus = ''; this.xlsxOpen = true; this.xlsxSkippedDetails = []; this.xlsxDuplicateDetails = [];
   }
   closeXlsx() { this.xlsxOpen = false; if (this.xlsxInputRef) this.xlsxInputRef.nativeElement.value = ''; }
@@ -257,7 +257,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     this.isDragging = false;
     const file = e.dataTransfer?.files?.[0];
     if (!file) return;
-    if (!file.name.match(/\.(xlsx|xls)$/i)) { this.toast.error('الملف غير مدعوم', 'يُرجى رفع ملف Excel بامتداد .xlsx أو .xls'); return; }
+    if (!file.name.match(/\.(xlsx|xls)$/i)) { this.toast.error(this.transloco.translate('detail.unsupportedFile'), this.transloco.translate('detail.unsupportedFileSub')); return; }
     this.processXlsxFile(file);
   }
 
@@ -464,12 +464,12 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
           };
           // تخطّي فقط لو مفيش اسم
           if (!row.name) {
-            row.error = 'صف ناقص — سيُتخطّى';
+            row.error = this.transloco.translate('detail.rowIncomplete');
             return row;
           }
           if (row.contract_date) {
             const parsedDate = this.parseContractDate(row.contract_date);
-            if (!parsedDate) row.error = `تاريخ غير صحيح: "${row.contract_date}"`;
+            if (!parsedDate) row.error = this.transloco.translate('detail.invalidDate', { date: row.contract_date });
             else row.contract_date = parsedDate;
           }
           return row;
@@ -484,7 +484,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
 
   async submitXlsx() {
     if (!this.auth.canManagePayments) return;
-    if (!this.projectName()) { this.toast.error('اختر مشروعاً أولاً'); return; }
+    if (!this.projectName()) { this.toast.error(this.transloco.translate('detail.pickProjectFirst')); return; }
     const validRows = this.xlsxRows.filter(r => !r.error);
     if (!validRows.length || this.xlsxImporting) return;
     this.xlsxImporting = true;
@@ -532,7 +532,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
             updated++;
           } else {
             skipped++;
-            skippedDetails.push({ name: row.name, reason: `لم يتم العثور على العميل صاحب كود الوحدة "${row.unit_code}" عند التحديث` });
+            skippedDetails.push({ name: row.name, reason: this.transloco.translate('detail.clientByUnitNotFound', { unit: row.unit_code }) });
           }
           continue;
         }
@@ -545,7 +545,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
             updated++;
           } else {
             skipped++;
-            skippedDetails.push({ name: row.name, reason: 'لم يتم العثور على العميل المطابق للاسم عند التحديث' });
+            skippedDetails.push({ name: row.name, reason: this.transloco.translate('detail.clientByNameNotFound') });
           }
           continue;
         }
@@ -583,7 +583,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
         }
       } catch (e: any) {
         skipped++;
-        skippedDetails.push({ name: row.name, reason: e?.message ?? 'خطأ غير متوقع' });
+        skippedDetails.push({ name: row.name, reason: e?.message ?? this.transloco.translate('detail.unexpectedError') });
       }
     }
 
@@ -595,15 +595,15 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     this.xlsxDuplicateDetails = duplicateDetails;
 
     const parts = [];
-    if (added)      parts.push(`أضيف ${added}`);
-    if (updated)    parts.push(`حُدِّث ${updated}`);
-    if (duplicates) parts.push(`موجود بالفعل ${duplicates}`);
-    if (skipped)    parts.push(`تخطّي ${skipped}`);
-    this.toast.success('تم الاستيراد', parts.join(' · '));
+    if (added)      parts.push(this.transloco.translate('detail.addedCount', { count: added }));
+    if (updated)    parts.push(this.transloco.translate('detail.updatedCount', { count: updated }));
+    if (duplicates) parts.push(this.transloco.translate('detail.duplicateCount', { count: duplicates }));
+    if (skipped)    parts.push(this.transloco.translate('detail.skippedCount', { count: skipped }));
+    this.toast.success(this.transloco.translate('detail.importedToast'), parts.join(' · '));
     if (duplicates) {
       this.toast.info(
-        `${duplicates} عميل موجود بالفعل`,
-        'نفس الاسم ورقم الوحدة موجودان مسبقاً — راجع القائمة التفصيلية'
+        this.transloco.translate('detail.duplicateCountToast', { count: duplicates }),
+        this.transloco.translate('detail.duplicateCountSub')
       );
     }
   }
@@ -681,12 +681,15 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
       const { sent, skipped } = await res.json();
       await this.reloadContracts();
       if (sent > 0) {
-        this.toast.success(`تم الإرسال لـ ${sent} عميل`, skipped ? `تخطّي ${skipped} (بدون إيميل)` : '');
+        this.toast.success(
+          this.transloco.translate('detail.sentToCount', { count: sent }),
+          skipped ? this.transloco.translate('detail.skippedNoEmail', { count: skipped }) : ''
+        );
       } else {
-        this.toast.info('لم يُرسَل أي إيميل', 'تأكد من إضافة الإيميل لعملاء المشروع');
+        this.toast.info(this.transloco.translate('detail.noEmailSent'), this.transloco.translate('detail.noEmailSentSub'));
       }
     } catch {
-      this.toast.error('خطأ في الإرسال', 'حاول مرة أخرى');
+      this.toast.error(this.transloco.translate('detail.sendError'), this.transloco.translate('detail.tryAgain'));
     }
     this.sendingReminders = false;
   }
@@ -719,9 +722,10 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     return (f['phone'] || f['mobile'] || '').replace(/[\s\-\(\)]/g, '');
   }
 
-  openWhatsApp(c: ContractWithPayments): void {
+  /** يبني رقم الهاتف الدولي ونص رسالة التذكير لعميل — مشتركة بين الإرسال الفردي والجماعي */
+  private buildWhatsAppMessage(c: ContractWithPayments): { phone: string; text: string } | null {
     let phone = this.clientPhone(c);
-    if (!phone) return;
+    if (!phone) return null;
     if (phone.startsWith('00')) phone = phone.slice(2);
     if (phone.startsWith('+')) phone = phone.slice(1);
     if (phone.startsWith('05')) phone = '966' + phone.slice(1);
@@ -734,6 +738,8 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
       c.payments.find(p => !p.paid);
 
     const unitCode = c.fields?.['unit_code'] ?? '';
+    // ملاحظة: نستخدم النص العربي المخزَّن (لا الاسم المترجَم) عمداً — رسالة الواتساب
+    // موجّهة للعميل مباشرة وتبقى عربية دائماً بغضّ النظر عن لغة واجهة الموظف
     const paymentLabel = targetPayment?.label ?? '';
     const dueDate = targetPayment ? this.formatDate(targetPayment.due_date) : '';
     const diffDays = targetPayment
@@ -751,7 +757,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
 
     const senderName = this.auth.displayName || 'عبدالرحمن أمين';
 
-    const msg =
+    const text =
 `السلام عليكم ورحمة الله وبركاته 🌹
 
 أ/ ${firstName}
@@ -764,7 +770,68 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
 
 وإذا احتجت أي مساعدة أو كان عندك أي استفسار، أنا حاضر في أي وقت.`;
 
-    window.location.href = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(msg)}`;
+    return { phone, text };
+  }
+
+  openWhatsApp(c: ContractWithPayments): void {
+    const built = this.buildWhatsAppMessage(c);
+    if (!built) return;
+    window.location.href = `whatsapp://send?phone=${built.phone}&text=${encodeURIComponent(built.text)}`;
+  }
+
+  // ── Bulk WhatsApp reminders (شبه-جماعي: نافذة تسير على العملاء واحداً واحداً) ───
+  waQueue: ContractWithPayments[] = [];
+  waQueueIndex = 0;
+  waQueueOpen = false;
+  waSentCount = 0;
+
+  get waQueueCurrent(): ContractWithPayments | null {
+    return this.waQueue[this.waQueueIndex] ?? null;
+  }
+
+  startWhatsAppReminders(): void {
+    const now = new Date();
+    this.waQueue = this.contracts().filter(c =>
+      c.payments.some(p => !p.paid && new Date(p.due_date) < now) && !!this.clientPhone(c)
+    );
+    if (!this.waQueue.length) {
+      this.toast.info(this.transloco.translate('detail.noWaClients'), this.transloco.translate('detail.noWaClientsSub'));
+      return;
+    }
+    this.waQueueIndex = 0;
+    this.waSentCount = 0;
+    this.waQueueOpen = true;
+  }
+
+  /** يفتح واتساب للعميل الحالي في تبويب جديد (بلا مغادرة الصفحة) وينتقل تلقائياً للتالي */
+  sendCurrentWhatsApp(): void {
+    const c = this.waQueueCurrent;
+    if (!c) return;
+    const built = this.buildWhatsAppMessage(c);
+    if (built) {
+      window.open(`https://wa.me/${built.phone}?text=${encodeURIComponent(built.text)}`, '_blank');
+      this.waSentCount++;
+    }
+    this.advanceWhatsAppQueue();
+  }
+
+  skipCurrentWhatsApp(): void {
+    this.advanceWhatsAppQueue();
+  }
+
+  private advanceWhatsAppQueue(): void {
+    if (this.waQueueIndex < this.waQueue.length - 1) {
+      this.waQueueIndex++;
+    } else {
+      this.toast.success(this.transloco.translate('detail.waDoneToast'), this.transloco.translate('detail.waDoneSub', { count: this.waSentCount }));
+      this.closeWhatsAppQueue();
+    }
+  }
+
+  closeWhatsAppQueue(): void {
+    this.waQueueOpen = false;
+    this.waQueue = [];
+    this.waQueueIndex = 0;
   }
   async sendEarlyReminder(p: PaymentRow, c: ContractWithPayments) {
     if (this.remindingId || p.reminder_count >= 2) return;
@@ -774,11 +841,11 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     if (res.sent) {
       p.last_reminded_at = new Date().toISOString();
       p.reminder_count = res.reminder_count ?? (p.reminder_count + 1);
-      this.toast.success('تم إرسال التذكير', `${c.client_name} · ${p.reminder_count}/2`);
+      this.toast.success(this.transloco.translate('detail.reminderSentToast'), `${c.client_name} · ${p.reminder_count}/2`);
     } else if (res.limit_reached) {
-      this.toast.error('وصل الحد الأقصى للتذكيرات (2/2)');
+      this.toast.error(this.transloco.translate('detail.reminderLimitReached'));
     } else {
-      this.toast.error(res.error?.includes('إيميل') ? 'لا يوجد إيميل للعميل' : 'فشل إرسال التذكير');
+      this.toast.error(this.transloco.translate(res.error?.includes('إيميل') ? 'detail.noEmailForClient' : 'detail.reminderFailed'));
     }
   }
 
@@ -786,6 +853,12 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     if (!iso) return '';
     const [y, m, d] = iso.split('-');
     return `${d}/${m}/${y}`;
+  }
+
+  /** يبني اسم القسط مترجَماً حسب لغة الواجهة الحالية من رقم القسط (بدل الاعتماد على
+   *  حقل `label` المخزَّن، وهو نص عربي ثابت لا يتغيّر مع تبديل اللغة) */
+  installmentLabel(p: PaymentRow): string {
+    return `${this.transloco.translate('payments.installment')} ${this.transloco.translate('payments.ordinal' + p.installment_number)}`;
   }
 
   async toggle(p: PaymentRow, c: ContractWithPayments) {
@@ -800,13 +873,14 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
           ),
         })
       );
+      const label = this.installmentLabel(p);
       if (nowPaid) {
-        this.toast.success('تم تسجيل الدفعة', `${p.label} — ${c.client_name}`);
+        this.toast.success(this.transloco.translate('detail.paymentRegisteredToast'), `${label} — ${c.client_name}`);
       } else {
-        this.toast.info('تم إلغاء الدفعة', `${p.label} — ${c.client_name}`);
+        this.toast.info(this.transloco.translate('detail.paymentCancelledToast'), `${label} — ${c.client_name}`);
       }
     } else {
-      this.toast.error('حدث خطأ', 'لم يتم حفظ التغيير، حاول مرة أخرى');
+      this.toast.error(this.transloco.translate('detail.genericError'), this.transloco.translate('detail.changeNotSavedRetry'));
     }
   }
 }

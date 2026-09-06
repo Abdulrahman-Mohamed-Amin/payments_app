@@ -2,6 +2,7 @@ import { Component, inject, computed, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { TranslocoModule } from '@jsverse/transloco';
 import { IconComponent } from '../../core/icon/icon.component';
 import { PaymentsService } from '../../core/payments.service';
 import { SupabaseService } from '../../core/supabase.service';
@@ -9,7 +10,7 @@ import { SupabaseService } from '../../core/supabase.service';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, IconComponent, FormsModule],
+  imports: [CommonModule, RouterLink, IconComponent, FormsModule, TranslocoModule],
   templateUrl: './dashboard.component.html',
 })
 export class DashboardComponent implements OnInit {

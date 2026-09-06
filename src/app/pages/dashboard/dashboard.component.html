@@ -9,8 +9,8 @@
         <app-icon name="users" />
       </div>
       <p class="text-3xl font-bold mt-4 tnum">{{ totalClients() }}</p>
-      <p class="text-sm font-medium text-ink mt-1">إجمالي العملاء</p>
-      <p class="text-xs text-ink-muted mt-2">عملاء مسجّلون في النظام</p>
+      <p class="text-sm font-medium text-ink mt-1">{{ 'dashboard.totalClients' | transloco }}</p>
+      <p class="text-xs text-ink-muted mt-2">{{ 'dashboard.registeredClients' | transloco }}</p>
     </div>
 
     <!-- Overdue -->
@@ -21,11 +21,11 @@
           <div class="grid h-11 w-11 place-items-center rounded-xl bg-white/20">
             <app-icon name="alert" />
           </div>
-          <span class="text-[11px] font-semibold bg-white/20 rounded-full px-2.5 py-1">تنبيه</span>
+          <span class="text-[11px] font-semibold bg-white/20 rounded-full px-2.5 py-1">{{ 'dashboard.alertBadge' | transloco }}</span>
         </div>
         <p class="text-4xl font-bold mt-4 tnum">{{ notif.overdueCount() }}</p>
-        <p class="text-sm font-medium mt-1">دفعات متأخرة</p>
-        <p class="text-xs text-white/80 mt-2">تتطلّب إجراءً عاجلاً</p>
+        <p class="text-sm font-medium mt-1">{{ 'dashboard.overduePayments' | transloco }}</p>
+        <p class="text-xs text-white/80 mt-2">{{ 'dashboard.requiresAction' | transloco }}</p>
       </div>
     } @else {
       <div class="rounded-2xl bg-white border border-line p-5 shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-pop">
@@ -33,8 +33,8 @@
           <app-icon name="check" />
         </div>
         <p class="text-3xl font-bold mt-4 tnum">0</p>
-        <p class="text-sm font-medium text-ink mt-1">دفعات متأخرة</p>
-        <p class="text-xs text-ink-muted mt-2">كل الدفعات في موعدها</p>
+        <p class="text-sm font-medium text-ink mt-1">{{ 'dashboard.overduePayments' | transloco }}</p>
+        <p class="text-xs text-ink-muted mt-2">{{ 'common.allOnTime' | transloco }}</p>
       </div>
     }
 
@@ -44,10 +44,10 @@
         <app-icon name="money" />
       </div>
       <p class="text-3xl font-bold mt-4 tnum">
-        {{ fmt(paidAmount()) }} <span class="text-base font-semibold text-ink-muted">ر.س</span>
+        {{ fmt(paidAmount()) }} <span class="text-base font-semibold text-ink-muted">{{ 'common.sar' | transloco }}</span>
       </p>
-      <p class="text-sm font-medium text-ink mt-1">المبلغ المحصَّل</p>
-      <p class="text-xs text-ink-muted mt-2">من إجمالي العقود</p>
+      <p class="text-sm font-medium text-ink mt-1">{{ 'dashboard.collectedAmount' | transloco }}</p>
+      <p class="text-xs text-ink-muted mt-2">{{ 'dashboard.fromTotalContracts' | transloco }}</p>
     </div>
 
     <!-- Remaining amount -->
@@ -56,10 +56,10 @@
         <app-icon name="calOut" />
       </div>
       <p class="text-3xl font-bold mt-4 tnum">
-        {{ fmt(remainingAmount()) }} <span class="text-base font-semibold text-ink-muted">ر.س</span>
+        {{ fmt(remainingAmount()) }} <span class="text-base font-semibold text-ink-muted">{{ 'common.sar' | transloco }}</span>
       </p>
-      <p class="text-sm font-medium text-ink mt-1">المبلغ المتبقي</p>
-      <p class="text-xs text-ink-muted mt-2">دفعات لم تُسدَّد بعد</p>
+      <p class="text-sm font-medium text-ink mt-1">{{ 'dashboard.remainingAmount' | transloco }}</p>
+      <p class="text-xs text-ink-muted mt-2">{{ 'dashboard.unpaidYet' | transloco }}</p>
     </div>
 
   </section>
@@ -68,12 +68,12 @@
   <section class="rounded-2xl bg-white border border-line shadow-card p-5 anim-rise">
     <div class="flex items-center justify-between mb-4">
       <div>
-        <h2 class="font-bold text-base">التحصيلات الشهرية</h2>
-        <p class="text-xs text-ink-muted mt-0.5">المبالغ المحصّلة هذا الشهر لكل مشروع</p>
+        <h2 class="font-bold text-base">{{ 'dashboard.monthlyCollections' | transloco }}</h2>
+        <p class="text-xs text-ink-muted mt-0.5">{{ 'dashboard.monthlyCollectionsSub' | transloco }}</p>
       </div>
     </div>
     @if (projectSummary().length === 0) {
-      <p class="text-sm text-ink-muted text-center py-4">لا توجد مشاريع بعد</p>
+      <p class="text-sm text-ink-muted text-center py-4">{{ 'dashboard.noProjectsYet' | transloco }}</p>
     } @else {
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         @for (p of projectSummary(); track p.name) {
@@ -87,21 +87,21 @@
                   <p class="text-xs font-semibold text-ink truncate">{{ p.name }}</p>
                   @if (p.monthlyPaid > 0) {
                     <p class="text-lg font-bold text-[#16A34A] tnum leading-tight">{{ fmt(p.monthlyPaid) }}</p>
-                    <p class="text-[10px] text-ink-faint">ر.س هذا الشهر</p>
+                    <p class="text-[10px] text-ink-faint">{{ 'dashboard.thisMonth' | transloco }}</p>
                   } @else {
                     <p class="text-lg font-bold text-ink-faint tnum leading-tight">0</p>
-                    <p class="text-[10px] text-ink-faint">لا يوجد تحصيل</p>
+                    <p class="text-[10px] text-ink-faint">{{ 'dashboard.noCollection' | transloco }}</p>
                   }
                 </a>
                 <button (click)="startEdit(p.name, $event)"
-                        title="تعديل الاسم"
+                        [title]="'dashboard.editName' | transloco"
                         class="shrink-0 p-1 rounded-md text-ink-faint hover:text-brand-700 hover:bg-brand-50 transition">
                   <app-icon name="pencil" cls="h-3.5 w-3.5" />
                 </button>
               </div>
             } @else {
               <div class="p-3">
-                <p class="text-[10px] text-brand-600 font-semibold mb-1.5">تعديل اسم المشروع</p>
+                <p class="text-[10px] text-brand-600 font-semibold mb-1.5">{{ 'dashboard.editProjectName' | transloco }}</p>
                 <input [(ngModel)]="editName"
                        (keydown.enter)="saveEdit()"
                        (keydown.escape)="cancelEdit()"
@@ -111,11 +111,11 @@
                 <div class="flex gap-1 mt-2">
                   <button (click)="saveEdit()" [disabled]="saving"
                           class="flex-1 rounded-lg bg-brand text-white text-[10px] font-bold py-1.5 hover:bg-brand-600 disabled:opacity-50 transition">
-                    {{ saving ? '...' : 'حفظ' }}
+                    {{ saving ? '...' : ('common.save' | transloco) }}
                   </button>
                   <button (click)="cancelEdit()" [disabled]="saving"
                           class="flex-1 rounded-lg border border-line text-ink-muted text-[10px] font-medium py-1.5 hover:bg-canvas transition">
-                    إلغاء
+                    {{ 'common.cancel' | transloco }}
                   </button>
                 </div>
               </div>
@@ -133,12 +133,12 @@
     <div class="anim-rise rounded-2xl bg-white border border-line shadow-card p-5 lg:p-6">
       <div class="flex items-center justify-between mb-5">
         <div>
-          <h2 class="font-bold text-lg">الدفعات المتأخرة</h2>
-          <p class="text-xs text-ink-muted mt-0.5">العملاء الذين تأخّرت دفعاتهم</p>
+          <h2 class="font-bold text-lg">{{ 'dashboard.overduePaymentsTitle' | transloco }}</h2>
+          <p class="text-xs text-ink-muted mt-0.5">{{ 'dashboard.overduePaymentsSub' | transloco }}</p>
         </div>
         <a routerLink="/payments"
            class="rounded-xl border border-line px-4 py-2 text-xs font-semibold text-ink-muted hover:bg-canvas transition">
-          عرض الكل
+          {{ 'dashboard.viewAll' | transloco }}
         </a>
       </div>
 
@@ -147,12 +147,12 @@
           <div class="grid h-16 w-16 place-items-center rounded-2xl bg-[#E9F9EF] text-[#16A34A] mb-4">
             <app-icon name="check" cls="h-8 w-8" />
           </div>
-          <p class="font-semibold text-ink">لا توجد دفعات متأخرة</p>
-          <p class="text-xs text-ink-muted mt-1">كل الدفعات في موعدها</p>
+          <p class="font-semibold text-ink">{{ 'common.noOverduePayments' | transloco }}</p>
+          <p class="text-xs text-ink-muted mt-1">{{ 'common.allOnTime' | transloco }}</p>
         </div>
       } @else {
-        <div class="space-y-3 max-h-80 overflow-y-auto pl-1">
-          @for (item of notif.overdueList(); track item.clientId + item.payment.label) {
+        <div class="space-y-3 max-h-80 overflow-y-auto pe-1">
+          @for (item of notif.overdueList(); track item.clientId + item.payment.id) {
             <div class="flex items-center gap-3 rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] px-4 py-3">
               <div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#FEE2E2] text-[#DC2626]">
                 <app-icon name="alert" cls="h-4 w-4" />
@@ -163,8 +163,8 @@
                   {{ item.projectName }}@if (item.unitCode) { · {{ item.unitCode }} }
                 </p>
               </div>
-              <div class="text-left shrink-0">
-                <p class="text-sm font-bold tnum text-ink">{{ fmt(item.payment.amount) }} <span class="text-xs font-medium text-ink-muted">ر.س</span></p>
+              <div class="text-end shrink-0">
+                <p class="text-sm font-bold tnum text-ink">{{ fmt(item.payment.amount) }} <span class="text-xs font-medium text-ink-muted">{{ 'common.sar' | transloco }}</span></p>
                 <p class="text-[11px] text-[#DC2626] tnum">{{ item.payment.date }}</p>
               </div>
             </div>
@@ -177,7 +177,7 @@
     <aside class="anim-scale space-y-4">
 
       <div class="rounded-2xl bg-white border border-line shadow-card p-5">
-        <h3 class="font-bold mb-4">إجراءات سريعة</h3>
+        <h3 class="font-bold mb-4">{{ 'dashboard.quickActions' | transloco }}</h3>
         <div class="space-y-3">
           <a routerLink="/generate"
              class="flex items-center gap-3 rounded-xl bg-brand px-4 py-3 text-white hover:bg-brand-600 transition">
@@ -185,8 +185,8 @@
               <app-icon name="doc" cls="h-5 w-5" />
             </div>
             <div>
-              <p class="text-sm font-bold">إنشاء وثيقة</p>
-              <p class="text-xs text-white/80">عقود وإشعارات الدفع</p>
+              <p class="text-sm font-bold">{{ 'dashboard.createDocument' | transloco }}</p>
+              <p class="text-xs text-white/80">{{ 'dashboard.contractsNotifSub' | transloco }}</p>
             </div>
           </a>
           <a routerLink="/payments"
@@ -195,8 +195,8 @@
               <app-icon name="money" cls="h-5 w-5" />
             </div>
             <div>
-              <p class="text-sm font-bold text-ink">متابعة الدفعات</p>
-              <p class="text-xs text-ink-muted">حالة دفعات العملاء</p>
+              <p class="text-sm font-bold text-ink">{{ 'dashboard.followPayments' | transloco }}</p>
+              <p class="text-xs text-ink-muted">{{ 'dashboard.clientPaymentStatusSub' | transloco }}</p>
             </div>
           </a>
           <a routerLink="/settings"
@@ -205,8 +205,8 @@
               <app-icon name="gear" cls="h-5 w-5" />
             </div>
             <div>
-              <p class="text-sm font-bold text-ink">الإعدادات</p>
-              <p class="text-xs text-ink-muted">إعدادات الحساب والنظام</p>
+              <p class="text-sm font-bold text-ink">{{ 'dashboard.settingsLabel' | transloco }}</p>
+              <p class="text-xs text-ink-muted">{{ 'dashboard.accountSettingsSub' | transloco }}</p>
             </div>
           </a>
         </div>
@@ -215,13 +215,13 @@
       <!-- Projects summary -->
       <div class="rounded-2xl bg-white border border-line shadow-card p-5">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="font-bold">ملخّص المشاريع</h3>
-          <span class="text-[11px] text-ink-faint">محصّل هذا الشهر</span>
+          <h3 class="font-bold">{{ 'dashboard.projectsSummary' | transloco }}</h3>
+          <span class="text-[11px] text-ink-faint">{{ 'dashboard.collectedThisMonth' | transloco }}</span>
         </div>
         @if (projectSummary().length === 0) {
-          <p class="text-xs text-ink-muted text-center py-6">لا توجد مشاريع بعد</p>
+          <p class="text-xs text-ink-muted text-center py-6">{{ 'dashboard.noProjectsYet' | transloco }}</p>
         } @else {
-          <div class="space-y-2 max-h-72 overflow-y-auto pl-1">
+          <div class="space-y-2 max-h-72 overflow-y-auto pe-1">
             @for (p of projectSummary(); track p.name) {
               <div class="rounded-xl border transition"
                    [ngClass]="editingProject() === p.name
@@ -232,27 +232,27 @@
                     <a [routerLink]="['/payments', p.name]" class="flex-1 min-w-0 flex items-start justify-between gap-2 cursor-pointer hover:opacity-80 transition">
                       <div class="min-w-0 flex-1">
                         <p class="text-sm font-semibold text-ink truncate">{{ p.name }}</p>
-                        <p class="text-[11px] text-ink-muted">{{ p.clients }} عميل</p>
+                        <p class="text-[11px] text-ink-muted">{{ p.clients }} {{ 'common.client' | transloco }}</p>
                       </div>
                       @if (p.overdue > 0) {
                         <span class="shrink-0 rounded-lg bg-[#FEE2E2] text-[#DC2626] text-xs font-bold px-2.5 py-1 tnum">
-                          {{ p.overdue }} متأخرة
+                          {{ p.overdue }} {{ 'common.overdue' | transloco }}
                         </span>
                       } @else {
                         <span class="shrink-0 rounded-lg bg-[#E9F9EF] text-[#16A34A] text-xs font-semibold px-2.5 py-1">
-                          منتظم
+                          {{ 'common.regular' | transloco }}
                         </span>
                       }
                     </a>
                     <button (click)="startEdit(p.name, $event)"
-                            title="تعديل الاسم"
+                            [title]="'dashboard.editName' | transloco"
                             class="shrink-0 p-1 rounded-md text-ink-faint hover:text-brand-700 hover:bg-brand-50 transition">
                       <app-icon name="pencil" cls="h-3.5 w-3.5" />
                     </button>
                   </div>
                 } @else {
                   <div class="px-3 py-2.5">
-                    <p class="text-[10px] text-brand-600 font-semibold mb-1.5">تعديل اسم المشروع</p>
+                    <p class="text-[10px] text-brand-600 font-semibold mb-1.5">{{ 'dashboard.editProjectName' | transloco }}</p>
                     <input [(ngModel)]="editName"
                            (keydown.enter)="saveEdit()"
                            (keydown.escape)="cancelEdit()"
@@ -262,11 +262,11 @@
                     <div class="flex gap-1.5 mt-2">
                       <button (click)="saveEdit()" [disabled]="saving"
                               class="flex-1 rounded-lg bg-brand text-white text-xs font-bold py-1.5 hover:bg-brand-600 disabled:opacity-50 transition">
-                        {{ saving ? '...' : 'حفظ' }}
+                        {{ saving ? '...' : ('common.save' | transloco) }}
                       </button>
                       <button (click)="cancelEdit()" [disabled]="saving"
                               class="flex-1 rounded-lg border border-line text-ink-muted text-xs font-medium py-1.5 hover:bg-canvas transition">
-                        إلغاء
+                        {{ 'common.cancel' | transloco }}
                       </button>
                     </div>
                   </div>

@@ -4,10 +4,10 @@
   <div class="flex items-center gap-4">
     <button type="button" (click)="back()"
       class="flex items-center gap-2 text-sm text-ink-muted hover:text-ink transition shrink-0">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 rtl:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
       </svg>
-      المشاريع
+      {{ 'detail.backToProjects' | transloco }}
     </button>
     <span class="text-ink-faint">/</span>
     <h1 class="text-xl font-bold text-ink truncate flex-1">{{ projectName() }}</h1>
@@ -15,13 +15,20 @@
       class="shrink-0 flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-canvas transition disabled:opacity-60">
       @if (sendingReminders) {
         <span class="h-4 w-4 rounded-full border-2 border-ink border-t-transparent animate-spin"></span>
-        جاري الإرسال...
+        {{ 'detail.sendingReminders' | transloco }}
       } @else {
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
-        إرسال تذكيرات
+        {{ 'detail.sendReminders' | transloco }}
       }
+    </button>
+    <button type="button" (click)="startWhatsAppReminders()"
+      class="shrink-0 flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-canvas transition">
+      <svg class="h-4 w-4 text-[#25D366]" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+      </svg>
+      {{ 'detail.sendWaReminders' | transloco }}
     </button>
     @if (auth.canManagePayments) {
       <button type="button" (click)="openXlsx()"
@@ -29,14 +36,14 @@
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#16A34A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6m3 6V7m3 10v-4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
         </svg>
-        استيراد Excel
+        {{ 'detail.importExcel' | transloco }}
       </button>
       <button type="button" (click)="openAdd()"
         class="shrink-0 flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 transition">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
         </svg>
-        إضافة عميل
+        {{ 'detail.addClient' | transloco }}
       </button>
     }
   </div>
@@ -44,14 +51,14 @@
   <!-- Search -->
   @if (!loading() && contracts().length) {
     <div class="relative max-w-sm">
-      <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute top-1/2 -translate-y-1/2 right-3.5 h-4 w-4 text-ink-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 h-4 w-4 text-ink-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
       </svg>
-      <input type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" placeholder="ابحث باسم العميل أو رقم الوحدة..."
-        class="w-full rounded-xl border border-line bg-white pr-10 pl-9 py-2.5 text-sm text-ink focus:outline-none focus:border-brand transition" />
+      <input type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" [placeholder]="'detail.searchPlaceholder' | transloco"
+        class="w-full rounded-xl border border-line bg-white ps-10 pe-9 py-2.5 text-sm text-ink focus:outline-none focus:border-brand transition" />
       @if (searchQuery()) {
         <button type="button" (click)="clearSearch()"
-          class="absolute top-1/2 -translate-y-1/2 left-3 grid h-5 w-5 place-items-center rounded-full text-ink-faint hover:bg-canvas hover:text-ink transition cursor-pointer">
+          class="absolute top-1/2 -translate-y-1/2 end-3 grid h-5 w-5 place-items-center rounded-full text-ink-faint hover:bg-canvas hover:text-ink transition cursor-pointer">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -71,7 +78,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-ink-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
       </svg>
-      <p class="text-sm font-semibold text-ink-muted">لا توجد نتائج لـ"{{ searchQuery() }}"</p>
+      <p class="text-sm font-semibold text-ink-muted">{{ 'detail.noResultsFor' | transloco: { query: searchQuery() } }}</p>
     </div>
   }
 
@@ -92,7 +99,7 @@
             <div class="flex items-center gap-3">
               <!-- Unit code badge -->
               <div class="flex flex-col items-center justify-center h-12 w-12 rounded-xl bg-brand text-white shrink-0">
-                <span class="text-[10px] font-medium opacity-80 leading-none">وحدة</span>
+                <span class="text-[10px] font-medium opacity-80 leading-none">{{ 'detail.unit' | transloco }}</span>
                 <span class="text-sm font-bold tnum leading-tight">{{ c.fields['unit_code'] || '—' }}</span>
               </div>
               <div class="min-w-0">
@@ -101,13 +108,13 @@
                   {{ clientEmail(c) || '—' }}
                 </p>
                 <p class="text-base font-bold tnum text-brand mt-0.5">
-                  {{ fmt(c.unit_price) }} <span class="text-xs font-semibold text-ink-muted">ر.س</span>
+                  {{ fmt(c.unit_price) }} <span class="text-xs font-semibold text-ink-muted">{{ 'common.sar' | transloco }}</span>
                 </p>
               </div>
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center gap-1.5 mr-auto">
+            <div class="flex items-center gap-1.5 ms-auto">
               @if (clientPhone(c)) {
                 <button type="button" (click)="openWhatsApp(c)"
                   class="grid h-8 w-8 place-items-center rounded-lg border border-line text-[#25D366] hover:bg-[#F0FDF9] hover:border-[#25D366] transition cursor-pointer"
@@ -138,19 +145,19 @@
           <div class="flex items-center gap-3 px-4 py-2.5 border-b border-line bg-canvas">
             <div class="flex-1">
               <div class="flex items-center justify-between mb-1">
-                <span class="text-xs text-ink-muted">التحصيل</span>
+                <span class="text-xs text-ink-muted">{{ 'detail.collection' | transloco }}</span>
                 <span class="text-xs font-bold text-ink tnum">{{ paidCount(c) }} / {{ c.payments.length }}</span>
               </div>
               <div class="h-1.5 w-full rounded-full bg-line overflow-hidden">
                 <div class="h-full rounded-full bg-brand transition-all duration-500" [style.width]="progressWidth(c)"></div>
               </div>
             </div>
-            <div class="text-left shrink-0">
-              <p class="text-[10px] text-ink-muted">المتبقي</p>
+            <div class="text-end shrink-0">
+              <p class="text-[10px] text-ink-muted">{{ 'detail.remaining' | transloco }}</p>
               <p class="text-sm font-bold tnum"
                  [class.text-[#16A34A]]="remaining(c) === 0"
                  [class.text-[#DC2626]]="remaining(c) > 0">
-                {{ fmt(remaining(c)) }} <span class="text-[10px] font-medium text-ink-muted">ر.س</span>
+                {{ fmt(remaining(c)) }} <span class="text-[10px] font-medium text-ink-muted">{{ 'common.sar' | transloco }}</span>
               </p>
             </div>
           </div>
@@ -165,13 +172,13 @@
                     <app-icon name="check" cls="h-3.5 w-3.5" />
                   </div>
                   <div class="flex-1 min-w-0">
-                    <p class="text-xs font-semibold text-ink">{{ p.label }}</p>
+                    <p class="text-xs font-semibold text-ink">{{ 'payments.installment' | transloco }} {{ ('payments.ordinal' + p.installment_number) | transloco }}</p>
                     <p class="text-[10px] text-ink-muted tnum">{{ formatDate(p.due_date) }}</p>
                   </div>
-                  <p class="text-xs font-bold tnum text-ink shrink-0">{{ fmt(p.amount) }} <span class="text-[10px] font-medium text-ink-muted">ر.س</span></p>
+                  <p class="text-xs font-bold tnum text-ink shrink-0">{{ fmt(p.amount) }} <span class="text-[10px] font-medium text-ink-muted">{{ 'common.sar' | transloco }}</span></p>
                   <button (click)="toggle(p, c)"
                     class="shrink-0 rounded-lg border border-line bg-white px-2 py-1 text-[10px] font-semibold text-ink-muted hover:border-[#DC2626] hover:text-[#DC2626] transition cursor-pointer">
-                    إلغاء
+                    {{ 'detail.cancelPayment' | transloco }}
                   </button>
                 </div>
               }
@@ -182,27 +189,27 @@
                     <app-icon name="alert" cls="h-3.5 w-3.5" />
                   </div>
                   <div class="flex-1 min-w-0">
-                    <p class="text-xs font-semibold text-ink">{{ p.label }}</p>
-                    <p class="text-[10px] text-[#DC2626] tnum">{{ formatDate(p.due_date) }} — مستحقة</p>
+                    <p class="text-xs font-semibold text-ink">{{ 'payments.installment' | transloco }} {{ ('payments.ordinal' + p.installment_number) | transloco }}</p>
+                    <p class="text-[10px] text-[#DC2626] tnum">{{ formatDate(p.due_date) }} — {{ 'detail.due' | transloco }}</p>
                     @if (p.last_reminded_at) {
                       <span class="inline-flex items-center gap-1 mt-1 rounded-md bg-white border border-white/60 shadow-sm px-2 py-0.5 text-[10px] font-semibold text-[#DC2626]">
-                        ✉ تم إرسال إشعار
+                        {{ 'detail.reminderSent' | transloco }}
                       </span>
                     }
                   </div>
-                  <p class="text-xs font-bold tnum text-ink shrink-0">{{ fmt(p.amount) }} <span class="text-[10px] font-medium text-ink-muted">ر.س</span></p>
+                  <p class="text-xs font-bold tnum text-ink shrink-0">{{ fmt(p.amount) }} <span class="text-[10px] font-medium text-ink-muted">{{ 'common.sar' | transloco }}</span></p>
                   @if (canRemind(p)) {
                     <button (click)="sendEarlyReminder(p, c)" [disabled]="!!remindingId || p.reminder_count >= 2"
                       class="shrink-0 rounded-lg border border-[#FCA5A5] bg-white px-2 py-1 text-[10px] font-semibold text-[#DC2626] hover:bg-[#FEE2E2] transition cursor-pointer disabled:opacity-50">
                       @if (remindingId === p.id) { <span>...</span> }
-                      @else if (p.reminder_count >= 2) { <span>✉ {{p.reminder_count}}/2</span> }
-                      @else if (p.reminder_count > 0) { <span>✉ تذكير · {{p.reminder_count}}/2</span> }
-                      @else { <span>✉ تذكير</span> }
+                      @else if (p.reminder_count >= 2) { <span>{{ 'detail.reminderMax' | transloco: { count: p.reminder_count } }}</span> }
+                      @else if (p.reminder_count > 0) { <span>{{ 'detail.reminderBtnCount' | transloco: { count: p.reminder_count } }}</span> }
+                      @else { <span>{{ 'detail.reminderBtn' | transloco }}</span> }
                     </button>
                   }
                   <button (click)="toggle(p, c)"
                     class="shrink-0 rounded-lg bg-[#DC2626] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#b91c1c] transition cursor-pointer">
-                    تسجيل دفع
+                    {{ 'detail.registerPayment' | transloco }}
                   </button>
                 </div>
               }
@@ -213,27 +220,27 @@
                     <app-icon name="alert" cls="h-3.5 w-3.5" />
                   </div>
                   <div class="flex-1 min-w-0">
-                    <p class="text-xs font-semibold text-ink">{{ p.label }}</p>
-                    <p class="text-[10px] text-[#D97706] tnum">{{ formatDate(p.due_date) }} — قريباً</p>
+                    <p class="text-xs font-semibold text-ink">{{ 'payments.installment' | transloco }} {{ ('payments.ordinal' + p.installment_number) | transloco }}</p>
+                    <p class="text-[10px] text-[#D97706] tnum">{{ formatDate(p.due_date) }} — {{ 'detail.soon' | transloco }}</p>
                     @if (p.last_reminded_at) {
                       <span class="inline-flex items-center gap-1 mt-1 rounded-md bg-white border border-white/60 shadow-sm px-2 py-0.5 text-[10px] font-semibold text-[#D97706]">
-                        ✉ تم إرسال إشعار
+                        {{ 'detail.reminderSent' | transloco }}
                       </span>
                     }
                   </div>
-                  <p class="text-xs font-bold tnum text-ink shrink-0">{{ fmt(p.amount) }} <span class="text-[10px] font-medium text-ink-muted">ر.س</span></p>
+                  <p class="text-xs font-bold tnum text-ink shrink-0">{{ fmt(p.amount) }} <span class="text-[10px] font-medium text-ink-muted">{{ 'common.sar' | transloco }}</span></p>
                   @if (canRemind(p)) {
                     <button (click)="sendEarlyReminder(p, c)" [disabled]="!!remindingId || p.reminder_count >= 2"
                       class="shrink-0 rounded-lg border border-[#FDE68A] bg-white px-2 py-1 text-[10px] font-semibold text-[#D97706] hover:bg-[#FEF3C7] transition cursor-pointer disabled:opacity-50">
                       @if (remindingId === p.id) { <span>...</span> }
-                      @else if (p.reminder_count >= 2) { <span>✉ {{p.reminder_count}}/2</span> }
-                      @else if (p.reminder_count > 0) { <span>✉ تذكير · {{p.reminder_count}}/2</span> }
-                      @else { <span>✉ تذكير</span> }
+                      @else if (p.reminder_count >= 2) { <span>{{ 'detail.reminderMax' | transloco: { count: p.reminder_count } }}</span> }
+                      @else if (p.reminder_count > 0) { <span>{{ 'detail.reminderBtnCount' | transloco: { count: p.reminder_count } }}</span> }
+                      @else { <span>{{ 'detail.reminderBtn' | transloco }}</span> }
                     </button>
                   }
                   <button (click)="toggle(p, c)"
                     class="shrink-0 rounded-lg bg-[#D97706] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#B45309] transition cursor-pointer">
-                    تسجيل دفع
+                    {{ 'detail.registerPayment' | transloco }}
                   </button>
                 </div>
               }
@@ -244,22 +251,22 @@
                     <app-icon name="calOut" cls="h-3.5 w-3.5" />
                   </div>
                   <div class="flex-1 min-w-0">
-                    <p class="text-xs font-semibold text-ink">{{ p.label }}</p>
+                    <p class="text-xs font-semibold text-ink">{{ 'payments.installment' | transloco }} {{ ('payments.ordinal' + p.installment_number) | transloco }}</p>
                     <p class="text-[10px] text-ink-muted tnum">{{ formatDate(p.due_date) }}</p>
                   </div>
-                  <p class="text-xs font-bold tnum text-ink shrink-0">{{ fmt(p.amount) }} <span class="text-[10px] font-medium text-ink-muted">ر.س</span></p>
+                  <p class="text-xs font-bold tnum text-ink shrink-0">{{ fmt(p.amount) }} <span class="text-[10px] font-medium text-ink-muted">{{ 'common.sar' | transloco }}</span></p>
                   @if (canRemind(p)) {
                     <button (click)="sendEarlyReminder(p, c)" [disabled]="!!remindingId || p.reminder_count >= 2"
                       class="shrink-0 rounded-lg border border-line bg-white px-2 py-1 text-[10px] font-semibold text-ink-muted hover:border-brand hover:text-brand transition cursor-pointer disabled:opacity-50">
                       @if (remindingId === p.id) { <span>...</span> }
-                      @else if (p.reminder_count >= 2) { <span>✉ {{p.reminder_count}}/2</span> }
-                      @else if (p.reminder_count > 0) { <span>✉ تذكير · {{p.reminder_count}}/2</span> }
-                      @else { <span>✉ تذكير</span> }
+                      @else if (p.reminder_count >= 2) { <span>{{ 'detail.reminderMax' | transloco: { count: p.reminder_count } }}</span> }
+                      @else if (p.reminder_count > 0) { <span>{{ 'detail.reminderBtnCount' | transloco: { count: p.reminder_count } }}</span> }
+                      @else { <span>{{ 'detail.reminderBtn' | transloco }}</span> }
                     </button>
                   }
                   <button (click)="toggle(p, c)"
                     class="shrink-0 rounded-lg border border-brand text-brand px-2 py-1 text-[10px] font-semibold hover:bg-brand hover:text-white transition cursor-pointer">
-                    تسجيل دفع
+                    {{ 'detail.registerPayment' | transloco }}
                   </button>
                 </div>
               }
@@ -285,16 +292,16 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
       </div>
-      <h3 class="text-center font-bold text-ink text-lg">حذف العميل</h3>
-      <p class="text-center text-sm text-ink-muted mt-2">سيتم حذف العميل وجميع دفعاته نهائياً. هذا الإجراء لا يمكن التراجع عنه.</p>
+      <h3 class="text-center font-bold text-ink text-lg">{{ 'detail.deleteClientTitle' | transloco }}</h3>
+      <p class="text-center text-sm text-ink-muted mt-2">{{ 'detail.deleteClientText' | transloco }}</p>
       <div class="flex gap-3 mt-6">
         <button (click)="executeDelete()" [disabled]="deleting"
           class="flex-1 rounded-xl bg-[#DC2626] py-2.5 text-sm font-semibold text-white hover:bg-[#b91c1c] transition disabled:opacity-60 cursor-pointer">
-          {{ deleting ? 'جاري الحذف...' : 'تأكيد الحذف' }}
+          {{ deleting ? ('common.deleting' | transloco) : ('payments.confirmDelete' | transloco) }}
         </button>
         <button (click)="cancelDelete()"
           class="flex-1 rounded-xl border border-line py-2.5 text-sm font-semibold text-ink-muted hover:bg-canvas transition cursor-pointer">
-          إلغاء
+          {{ 'common.cancel' | transloco }}
         </button>
       </div>
     </div>
@@ -306,31 +313,31 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 anim-fade" (click)="cancelEdit()">
     <div class="absolute inset-0 bg-ink/40 backdrop-blur-sm"></div>
     <div class="relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-pop p-6 anim-pop" (click)="$event.stopPropagation()">
-      <h3 class="font-bold text-ink text-lg mb-5">تعديل بيانات العميل</h3>
+      <h3 class="font-bold text-ink text-lg mb-5">{{ 'detail.editClientTitle' | transloco }}</h3>
 
       <div class="space-y-4">
         <div>
-          <label class="block text-xs font-semibold text-ink-muted mb-1.5">اسم العميل</label>
+          <label class="block text-xs font-semibold text-ink-muted mb-1.5">{{ 'detail.clientName' | transloco }}</label>
           <input type="text" [(ngModel)]="editName"
             class="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand focus:bg-white transition" />
         </div>
         <div>
-          <label class="block text-xs font-semibold text-ink-muted mb-1.5">البريد الإلكتروني</label>
+          <label class="block text-xs font-semibold text-ink-muted mb-1.5">{{ 'detail.email' | transloco }}</label>
           <input type="email" [(ngModel)]="editEmail" placeholder="client@email.com" dir="ltr"
             class="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand focus:bg-white transition" />
         </div>
         <div>
-          <label class="block text-xs font-semibold text-ink-muted mb-1.5">رقم الجوال</label>
+          <label class="block text-xs font-semibold text-ink-muted mb-1.5">{{ 'detail.phone' | transloco }}</label>
           <input type="tel" [(ngModel)]="editPhone" placeholder="05XXXXXXXX" dir="ltr"
             class="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand focus:bg-white transition" />
         </div>
         <div>
-          <label class="block text-xs font-semibold text-ink-muted mb-1.5">كود الوحدة</label>
+          <label class="block text-xs font-semibold text-ink-muted mb-1.5">{{ 'detail.unitCode' | transloco }}</label>
           <input type="text" [(ngModel)]="editUnitCode"
             class="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand focus:bg-white transition" />
         </div>
         <div>
-          <label class="block text-xs font-semibold text-ink-muted mb-1.5">تاريخ العقد</label>
+          <label class="block text-xs font-semibold text-ink-muted mb-1.5">{{ 'detail.contractDate' | transloco }}</label>
           <input type="date" [(ngModel)]="editContractDate"
             class="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand focus:bg-white transition" />
         </div>
@@ -339,11 +346,11 @@
       <div class="flex gap-3 mt-6">
         <button (click)="saveEdit()" [disabled]="saving"
           class="flex-1 rounded-xl bg-brand py-2.5 text-sm font-semibold text-white hover:bg-brand-600 transition disabled:opacity-60 cursor-pointer">
-          {{ saving ? 'جاري الحفظ...' : 'حفظ' }}
+          {{ saving ? ('common.saving' | transloco) : ('common.save' | transloco) }}
         </button>
         <button (click)="cancelEdit()"
           class="flex-1 rounded-xl border border-line py-2.5 text-sm font-semibold text-ink-muted hover:bg-canvas transition cursor-pointer">
-          إلغاء
+          {{ 'common.cancel' | transloco }}
         </button>
       </div>
     </div>
@@ -355,11 +362,11 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 anim-fade" (click)="closeXlsx()">
     <div class="absolute inset-0 bg-ink/40 backdrop-blur-sm"></div>
     <div class="relative z-10 w-full max-w-2xl rounded-2xl bg-white shadow-pop p-6 anim-pop" (click)="$event.stopPropagation()">
-      <h3 class="font-bold text-ink text-lg mb-1">استيراد عملاء من Excel</h3>
+      <h3 class="font-bold text-ink text-lg mb-1">{{ 'detail.importTitle' | transloco }}</h3>
       <p class="text-xs text-ink-muted mb-5">
-        العمود الإلزامي الوحيد: <span class="font-mono bg-canvas px-1 rounded">name</span> — باقي الأعمدة اختيارية.
-        لتحديد حالة كل دفعة أضف أعمدة <span class="font-mono bg-canvas px-1 rounded">دفعة_1</span> إلى <span class="font-mono bg-canvas px-1 rounded">دفعة_6</span> بقيمة "نعم" أو "لا".
-        حمّل القالب أدناه لضمان التنسيق الصحيح.
+        {{ 'detail.importRequiredCol' | transloco }} <span class="font-mono bg-canvas px-1 rounded">name</span> — {{ 'detail.importRestOptional' | transloco }}
+        {{ 'detail.importPaidCols' | transloco }} <span class="font-mono bg-canvas px-1 rounded">دفعة_1</span> {{ 'detail.importTo' | transloco }} <span class="font-mono bg-canvas px-1 rounded">دفعة_6</span> {{ 'detail.importYesNo' | transloco }}
+        {{ 'detail.importTemplateHint' | transloco }}
       </p>
 
       <input #xlsxInput type="file" accept=".xlsx,.xls" class="hidden" (change)="handleXlsxFile($event)">
@@ -380,18 +387,18 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6m3 6V7m3 10v-4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
           </svg>
           <p class="text-sm font-semibold text-ink">
-            {{ isDragging ? 'اتركه هنا...' : 'اضغط أو اسحب ملف Excel هنا' }}
+            {{ isDragging ? ('detail.dropHere' | transloco) : ('detail.dropPrompt' | transloco) }}
           </p>
           <p class="text-xs text-ink-faint">xlsx / xls</p>
         </div>
         <div class="mt-4 flex items-center justify-center gap-2">
-          <span class="text-xs text-ink-faint">ليس لديك ملف بالتنسيق الصحيح؟</span>
+          <span class="text-xs text-ink-faint">{{ 'detail.noCorrectFile' | transloco }}</span>
           <button (click)="$event.stopPropagation(); downloadTemplate()"
             class="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-canvas hover:border-brand hover:text-brand transition cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
             </svg>
-            تحميل القالب
+            {{ 'detail.downloadTemplate' | transloco }}
           </button>
         </div>
       } @else {
@@ -399,14 +406,14 @@
           <table class="w-full text-sm">
             <thead class="bg-canvas sticky top-0">
               <tr>
-                <th class="text-right px-3 py-2 text-xs font-semibold text-ink-muted">الاسم</th>
-                <th class="text-right px-3 py-2 text-xs font-semibold text-ink-muted">الوحدة</th>
-                <th class="text-right px-3 py-2 text-xs font-semibold text-ink-muted">السعر</th>
-                <th class="text-right px-3 py-2 text-xs font-semibold text-ink-muted">الدفعة الأولى</th>
-                <th class="text-right px-3 py-2 text-xs font-semibold text-ink-muted">تاريخ العقد</th>
-                <th class="text-right px-3 py-2 text-xs font-semibold text-ink-muted">الهاتف</th>
-                <th class="text-right px-3 py-2 text-xs font-semibold text-ink-muted">الدفعات المسددة</th>
-                <th class="text-right px-3 py-2 text-xs font-semibold text-ink-muted"></th>
+                <th class="text-start px-3 py-2 text-xs font-semibold text-ink-muted">{{ 'detail.colName' | transloco }}</th>
+                <th class="text-start px-3 py-2 text-xs font-semibold text-ink-muted">{{ 'detail.colUnit' | transloco }}</th>
+                <th class="text-start px-3 py-2 text-xs font-semibold text-ink-muted">{{ 'detail.colPrice' | transloco }}</th>
+                <th class="text-start px-3 py-2 text-xs font-semibold text-ink-muted">{{ 'detail.colFirstPayment' | transloco }}</th>
+                <th class="text-start px-3 py-2 text-xs font-semibold text-ink-muted">{{ 'detail.colContractDate' | transloco }}</th>
+                <th class="text-start px-3 py-2 text-xs font-semibold text-ink-muted">{{ 'detail.colPhone' | transloco }}</th>
+                <th class="text-start px-3 py-2 text-xs font-semibold text-ink-muted">{{ 'detail.colPaidInstallments' | transloco }}</th>
+                <th class="text-start px-3 py-2 text-xs font-semibold text-ink-muted"></th>
               </tr>
             </thead>
             <tbody>
@@ -435,10 +442,10 @@
         </div>
 
         <p class="text-xs text-ink-muted mb-4">
-          {{ xlsxRows.length }} صف —
-          <span class="text-[#16A34A] font-semibold">{{ xlsxValidCount }} صالح</span>
+          {{ 'detail.rowsCount' | transloco: { count: xlsxRows.length } }}
+          <span class="text-[#16A34A] font-semibold">{{ 'detail.validCount' | transloco: { count: xlsxValidCount } }}</span>
           @if (xlsxErrorCount) {
-            · <span class="text-[#DC2626] font-semibold">{{ xlsxErrorCount }} خطأ (سيُتخطّى)</span>
+            · <span class="text-[#DC2626] font-semibold">{{ 'detail.errorCount' | transloco: { count: xlsxErrorCount } }}</span>
           }
         </p>
 
@@ -451,15 +458,15 @@
         <div class="flex gap-3">
           <button (click)="submitXlsx()" [disabled]="xlsxImporting"
             class="flex-1 rounded-xl bg-brand py-2.5 text-sm font-semibold text-white hover:bg-brand-600 transition disabled:opacity-60 cursor-pointer">
-            {{ xlsxImporting ? (xlsxStatus || 'جاري الاستيراد...') : ('استيراد ' + xlsxValidCount + ' عميل') }}
+            {{ xlsxImporting ? (xlsxStatus || ('detail.importing' | transloco)) : ('detail.importN' | transloco: { count: xlsxValidCount }) }}
           </button>
           <button (click)="triggerXlsxInput()" [disabled]="xlsxImporting"
             class="rounded-xl border border-line px-4 py-2.5 text-sm font-semibold text-ink-muted hover:bg-canvas transition cursor-pointer">
-            تغيير الملف
+            {{ 'detail.changeFile' | transloco }}
           </button>
           <button (click)="closeXlsx()" [disabled]="xlsxImporting"
             class="rounded-xl border border-line px-4 py-2.5 text-sm font-semibold text-ink-muted hover:bg-canvas transition cursor-pointer">
-            إلغاء
+            {{ 'common.cancel' | transloco }}
           </button>
         </div>
       }
@@ -477,15 +484,15 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
         </svg>
       </div>
-      <h3 class="text-center font-bold text-ink text-lg">تم تخطّي {{ xlsxSkippedDetails.length }} عميل</h3>
-      <p class="text-center text-sm text-ink-muted mt-1 mb-4">لم تتم إضافتهم أو تحديثهم — راجع الأسباب أدناه وصحّح البيانات في الملف ثم أعد استيرادهم.</p>
+      <h3 class="text-center font-bold text-ink text-lg">{{ 'detail.skippedTitle' | transloco: { count: xlsxSkippedDetails.length } }}</h3>
+      <p class="text-center text-sm text-ink-muted mt-1 mb-4">{{ 'detail.skippedSub' | transloco }}</p>
 
       <div class="rounded-xl border border-line overflow-hidden max-h-72 overflow-y-auto">
         @for (item of xlsxSkippedDetails; track $index) {
           <div class="flex items-start gap-3 px-4 py-2.5 border-t border-line first:border-t-0">
             <span class="shrink-0 grid h-6 w-6 place-items-center rounded-lg bg-[#FEF3C7] text-[#D97706] text-[10px] font-bold mt-0.5">{{ $index + 1 }}</span>
             <div class="min-w-0">
-              <p class="text-sm font-semibold text-ink truncate">{{ item.name || 'بدون اسم' }}</p>
+              <p class="text-sm font-semibold text-ink truncate">{{ item.name || ('detail.noName' | transloco) }}</p>
               <p class="text-xs text-ink-muted mt-0.5">{{ item.reason }}</p>
             </div>
           </div>
@@ -494,7 +501,7 @@
 
       <button (click)="closeXlsxSkipped()"
         class="w-full mt-5 rounded-xl border border-line py-2.5 text-sm font-semibold text-ink-muted hover:bg-canvas transition cursor-pointer">
-        إغلاق
+        {{ 'detail.close' | transloco }}
       </button>
     </div>
   </div>
@@ -510,16 +517,16 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
-      <h3 class="text-center font-bold text-ink text-lg">{{ xlsxDuplicateDetails.length }} عميل موجود بالفعل</h3>
-      <p class="text-center text-sm text-ink-muted mt-1 mb-4">هؤلاء العملاء لهم نفس الاسم ونفس رقم الوحدة في المشروع بالفعل — لم تتم إضافتهم من جديد.</p>
+      <h3 class="text-center font-bold text-ink text-lg">{{ 'detail.duplicateTitle' | transloco: { count: xlsxDuplicateDetails.length } }}</h3>
+      <p class="text-center text-sm text-ink-muted mt-1 mb-4">{{ 'detail.duplicateSub' | transloco }}</p>
 
       <div class="rounded-xl border border-line overflow-hidden max-h-72 overflow-y-auto">
         @for (item of xlsxDuplicateDetails; track $index) {
           <div class="flex items-start gap-3 px-4 py-2.5 border-t border-line first:border-t-0">
             <span class="shrink-0 grid h-6 w-6 place-items-center rounded-lg bg-[#DBEAFE] text-[#2563EB] text-[10px] font-bold mt-0.5">{{ $index + 1 }}</span>
             <div class="min-w-0">
-              <p class="text-sm font-semibold text-ink truncate">{{ item.name || 'بدون اسم' }}</p>
-              <p class="text-xs text-ink-muted mt-0.5">وحدة {{ item.unit }}</p>
+              <p class="text-sm font-semibold text-ink truncate">{{ item.name || ('detail.noName' | transloco) }}</p>
+              <p class="text-xs text-ink-muted mt-0.5">{{ 'detail.duplicateUnit' | transloco: { unit: item.unit } }}</p>
             </div>
           </div>
         }
@@ -527,7 +534,7 @@
 
       <button (click)="closeXlsxDuplicates()"
         class="w-full mt-5 rounded-xl border border-line py-2.5 text-sm font-semibold text-ink-muted hover:bg-canvas transition cursor-pointer">
-        إغلاق
+        {{ 'detail.close' | transloco }}
       </button>
     </div>
   </div>
@@ -538,41 +545,41 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 anim-fade" (click)="closeAdd()">
     <div class="absolute inset-0 bg-ink/40 backdrop-blur-sm"></div>
     <div class="relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-pop p-6 anim-pop" (click)="$event.stopPropagation()">
-      <h3 class="font-bold text-ink text-lg mb-5">إضافة عميل جديد</h3>
+      <h3 class="font-bold text-ink text-lg mb-5">{{ 'detail.addClientTitle' | transloco }}</h3>
 
       <div class="space-y-4">
         <div>
-          <label class="block text-xs font-semibold text-ink-muted mb-1.5">اسم العميل <span class="text-[#DC2626]">*</span></label>
+          <label class="block text-xs font-semibold text-ink-muted mb-1.5">{{ 'detail.clientName' | transloco }} <span class="text-[#DC2626]">*</span></label>
           <input type="text" [(ngModel)]="addName" placeholder="محمد عبدالله"
             class="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand focus:bg-white transition" />
         </div>
         <div>
-          <label class="block text-xs font-semibold text-ink-muted mb-1.5">البريد الإلكتروني</label>
+          <label class="block text-xs font-semibold text-ink-muted mb-1.5">{{ 'detail.email' | transloco }}</label>
           <input type="email" [(ngModel)]="addEmail" placeholder="client@email.com" dir="ltr"
             class="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand focus:bg-white transition" />
         </div>
         <div>
-          <label class="block text-xs font-semibold text-ink-muted mb-1.5">رقم الجوال</label>
+          <label class="block text-xs font-semibold text-ink-muted mb-1.5">{{ 'detail.phone' | transloco }}</label>
           <input type="tel" [(ngModel)]="addPhone" placeholder="05XXXXXXXX" dir="ltr"
             class="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand focus:bg-white transition" />
         </div>
         <div>
-          <label class="block text-xs font-semibold text-ink-muted mb-1.5">كود الوحدة</label>
+          <label class="block text-xs font-semibold text-ink-muted mb-1.5">{{ 'detail.unitCode' | transloco }}</label>
           <input type="text" [(ngModel)]="addUnitCode" placeholder="A-101"
             class="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand focus:bg-white transition" />
         </div>
         <div>
-          <label class="block text-xs font-semibold text-ink-muted mb-1.5">سعر الوحدة (ر.س) <span class="text-[#DC2626]">*</span></label>
+          <label class="block text-xs font-semibold text-ink-muted mb-1.5">{{ 'detail.unitPrice' | transloco }} <span class="text-[#DC2626]">*</span></label>
           <input type="number" [(ngModel)]="addUnitPrice" placeholder="500000" dir="ltr"
             class="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand focus:bg-white transition" />
         </div>
         <div>
-          <label class="block text-xs font-semibold text-ink-muted mb-1.5">تاريخ أول قسط <span class="text-[#DC2626]">*</span></label>
+          <label class="block text-xs font-semibold text-ink-muted mb-1.5">{{ 'detail.firstInstallmentDate' | transloco }} <span class="text-[#DC2626]">*</span></label>
           <input type="date" [(ngModel)]="addFirstPaymentDate" dir="ltr"
             class="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand focus:bg-white transition" />
         </div>
         <div class="rounded-xl bg-canvas border border-line px-3 py-2.5 text-xs text-ink-muted">
-          سيتم توزيع المبلغ على <strong class="text-ink">6 أقساط كل 3 أشهر</strong> متساوية تلقائياً.
+          {{ 'detail.installmentPlanHint' | transloco }}
         </div>
       </div>
 
@@ -581,16 +588,55 @@
           class="flex-1 rounded-xl bg-brand py-2.5 text-sm font-semibold text-white hover:bg-brand-600 transition disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2">
           @if (addSaving) {
             <span class="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-            جاري الحفظ...
+            {{ 'common.saving' | transloco }}
           } @else {
-            إضافة العميل
+            {{ 'detail.addingClient' | transloco }}
           }
         </button>
         <button (click)="closeAdd()"
           class="flex-1 rounded-xl border border-line py-2.5 text-sm font-semibold text-ink-muted hover:bg-canvas transition cursor-pointer">
-          إلغاء
+          {{ 'common.cancel' | transloco }}
         </button>
       </div>
+    </div>
+  </div>
+}
+
+<!-- ═══ Bulk WhatsApp reminders queue ═══ -->
+@if (waQueueOpen && waQueueCurrent) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 anim-fade" (click)="closeWhatsAppQueue()">
+    <div class="absolute inset-0 bg-ink/40 backdrop-blur-sm"></div>
+    <div class="relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-pop p-6 anim-pop" (click)="$event.stopPropagation()">
+      <div class="grid h-12 w-12 place-items-center rounded-xl bg-[#F0FDF9] text-[#25D366] mx-auto mb-4">
+        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+        </svg>
+      </div>
+      <h3 class="text-center font-bold text-ink text-lg">{{ 'detail.waQueueTitle' | transloco }}</h3>
+      <p class="text-center text-xs text-ink-faint mt-1 mb-4">{{ 'detail.waQueueProgress' | transloco: { current: waQueueIndex + 1, total: waQueue.length } }}</p>
+
+      <div class="rounded-xl bg-canvas border border-line p-4 text-center">
+        <p class="font-bold text-ink">{{ waQueueCurrent.client_name }}</p>
+        <p class="text-xs text-ink-muted mt-1">{{ 'detail.unit' | transloco }} {{ waQueueCurrent.fields['unit_code'] || '—' }} · <span dir="ltr">{{ clientPhone(waQueueCurrent) }}</span></p>
+      </div>
+
+      <div class="flex gap-3 mt-5">
+        <button (click)="sendCurrentWhatsApp()"
+          class="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-2.5 text-sm font-semibold text-white hover:bg-[#1EBE5A] transition cursor-pointer">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+          </svg>
+          {{ 'detail.waOpenAndSend' | transloco }}
+        </button>
+        <button (click)="skipCurrentWhatsApp()"
+          class="rounded-xl border border-line px-4 py-2.5 text-sm font-semibold text-ink-muted hover:bg-canvas transition cursor-pointer">
+          {{ 'detail.skip' | transloco }}
+        </button>
+      </div>
+      <button (click)="closeWhatsAppQueue()"
+        class="w-full mt-3 text-xs text-ink-faint hover:text-ink-muted transition cursor-pointer">
+        {{ 'detail.close' | transloco }}
+      </button>
     </div>
   </div>
 }

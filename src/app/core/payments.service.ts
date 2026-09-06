@@ -9,7 +9,9 @@ export interface OverdueItem {
   projectName: string;
   payment: {
     id: string;
-    label: string;
+    /** رقم القسط (1-6) — يُستخدم لعرض اسم الدفعة مترجَماً حسب لغة الواجهة الحالية،
+     *  بدل الاعتماد على `label` المخزَّن (نص عربي ثابت وقت إنشاء العقد لا يتغيّر مع اللغة) */
+    installmentNumber: number;
     amount: number;
     date: string;
   };
@@ -47,7 +49,7 @@ export class PaymentsService implements OnDestroy {
           unitCode: (c.fields?.['unit_code'] ?? ''),
           payment: {
             id: p.id,
-            label: p.label,
+            installmentNumber: p.installment_number,
             amount: p.amount,
             date: this.formatDate(p.due_date),
           },
