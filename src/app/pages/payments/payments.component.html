@@ -1,14 +1,14 @@
 <main class="flex-1 px-5 lg:px-8 py-6 space-y-4">
 
   <!-- Header -->
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-xl font-bold text-ink">{{ 'payments.title' | transloco }}</h1>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="min-w-0">
+      <h1 class="text-lg sm:text-xl font-bold text-ink">{{ 'payments.title' | transloco }}</h1>
       <p class="text-xs text-ink-muted mt-0.5">{{ 'payments.projectCount' | transloco: { count: projects().length } }}</p>
     </div>
     @if (auth.canManagePayments) {
       <button type="button" (click)="openAdd()"
-        class="flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 transition">
+        class="shrink-0 flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 transition">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
         </svg>

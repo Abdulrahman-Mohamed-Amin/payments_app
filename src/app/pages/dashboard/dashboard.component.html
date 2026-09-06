@@ -43,7 +43,7 @@
       <div class="grid h-11 w-11 place-items-center rounded-xl bg-[#E9F9EF] text-[#16A34A]">
         <app-icon name="money" />
       </div>
-      <p class="text-3xl font-bold mt-4 tnum">
+      <p class="text-2xl sm:text-3xl font-bold mt-4 tnum leading-tight break-words">
         {{ fmt(paidAmount()) }} <span class="text-base font-semibold text-ink-muted">{{ 'common.sar' | transloco }}</span>
       </p>
       <p class="text-sm font-medium text-ink mt-1">{{ 'dashboard.collectedAmount' | transloco }}</p>
@@ -55,7 +55,7 @@
       <div class="grid h-11 w-11 place-items-center rounded-xl bg-[#E6F8FB] text-[#1597AE]">
         <app-icon name="calOut" />
       </div>
-      <p class="text-3xl font-bold mt-4 tnum">
+      <p class="text-2xl sm:text-3xl font-bold mt-4 tnum leading-tight break-words">
         {{ fmt(remainingAmount()) }} <span class="text-base font-semibold text-ink-muted">{{ 'common.sar' | transloco }}</span>
       </p>
       <p class="text-sm font-medium text-ink mt-1">{{ 'dashboard.remainingAmount' | transloco }}</p>

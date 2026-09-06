@@ -77,7 +77,7 @@
   <div class="flex-1 min-w-0 flex flex-col">
     <!-- Topbar -->
     <header
-      class="sticky top-0 z-20 flex items-center gap-4 bg-white/90 backdrop-blur border-b border-line px-5 lg:px-8 py-4"
+      class="sticky top-0 z-20 flex items-center gap-2 sm:gap-4 bg-white/90 backdrop-blur border-b border-line px-4 sm:px-5 lg:px-8 py-3 sm:py-4"
     >
       <button
         type="button"
@@ -88,15 +88,15 @@
         <app-icon name="menu" />
       </button>
 
-      <div class="min-w-0 flex items-center gap-3">
+      <div class="min-w-0 flex-1 flex items-center gap-3">
         <img src="logo-blue.png" [attr.alt]="'login.companyName' | transloco" class="h-8 w-auto object-contain lg:hidden shrink-0" />
-        <div>
-          <h1 class="text-lg lg:text-xl font-bold leading-tight">{{ titleKey | transloco }}</h1>
-          <p class="text-xs text-ink-muted">{{ subtitleKey | transloco }}</p>
+        <div class="min-w-0">
+          <h1 class="text-base sm:text-lg lg:text-xl font-bold leading-tight truncate">{{ titleKey | transloco }}</h1>
+          <p class="text-xs text-ink-muted truncate hidden sm:block">{{ subtitleKey | transloco }}</p>
         </div>
       </div>
 
-      <div class="flex items-center gap-3 ms-auto">
+      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
         <!-- Language toggle -->
         <button
           type="button"
@@ -124,7 +124,7 @@
           @if (notifOpen) {
             <div
               id="notif-panel"
-              class="absolute end-0 top-12 z-50 w-80 rounded-2xl bg-white border border-line shadow-pop anim-pop overflow-hidden"
+              class="absolute end-0 top-12 z-50 w-[calc(100vw-2rem)] max-w-xs sm:w-80 rounded-2xl bg-white border border-line shadow-pop anim-pop overflow-hidden"
             >
               <div class="flex items-center justify-between px-4 py-3 border-b border-line">
                 <p class="text-sm font-bold text-ink">{{ 'layout.notifications' | transloco }}</p>
@@ -164,10 +164,10 @@
             </div>
           }
         </div>
-        <div class="flex items-center gap-3 rounded-xl border border-line py-1.5 ps-1.5 pe-3">
-          <div class="grid h-8 w-8 place-items-center rounded-lg bg-brand-100 text-brand-700 text-sm font-bold">{{ auth.displayName.charAt(0) || '?' }}</div>
-          <div class="hidden sm:block leading-tight whitespace-nowrap">
-            <p class="text-sm font-semibold">{{ auth.displayName || auth.currentUser?.email }}</p>
+        <div class="flex items-center gap-2 sm:gap-3 rounded-xl border border-line py-1.5 ps-1.5 pe-1.5 sm:pe-3">
+          <div class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-100 text-brand-700 text-sm font-bold">{{ auth.displayName.charAt(0) || '?' }}</div>
+          <div class="hidden sm:block leading-tight min-w-0 max-w-[160px]">
+            <p class="text-sm font-semibold truncate">{{ auth.displayName || auth.currentUser?.email }}</p>
           </div>
           <button
             type="button"
