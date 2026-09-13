@@ -304,6 +304,35 @@ export class SupabaseService {
     return !error;
   }
 
+  /** Update the amount and/or due_date of a single payment installment — used for one-off
+   *  exceptions where a client's schedule/amount needs to diverge from the standard plan
+   *  without touching the rest of their installments. */
+  async updatePayment(id: string, updates: { amount?: number; due_date?: string }): Promise<boolean> {
+    const { error } = await this.db.from('payments').update(updates).eq('id', id);
+    return !error;
+  }
+
+  /** Permanently delete a single payment installment (e.g. a client renegotiated down to
+   *  fewer installments). Use renumberPayments() afterwards to keep the remaining
+   *  installments' numbering/labels sequential. */
+  async deletePayment(id: string): Promise<boolean> {
+    const { error } = await this.db.from('payments').delete().eq('id', id);
+    return !error;
+  }
+
+  /** Renumbers a contract's remaining payments sequentially (1..n) in the given order —
+   *  called after deletePayment() so installment_number/label stay consistent with their
+   *  chronological position instead of leaving a gap. */
+  async renumberPayments(orderedIds: string[]): Promise<boolean> {
+    const results = await Promise.all(
+      orderedIds.map((id, i) => this.db.from('payments').update({
+        installment_number: i + 1,
+        label: INSTALL_LABELS[i] ?? `الدفعة ${i + 1}`,
+      }).eq('id', id))
+    );
+    return results.every(r => !r.error);
+  }
+
   /** Recalculate and update due_date for all payments of a contract based on new contract date.
    *  Installment offsets: 0, 3, 6, 9, 12, 15 months from contract date. */
   async recalcPaymentDates(payments: PaymentRow[], contractDate: string): Promise<PaymentRow[]> {

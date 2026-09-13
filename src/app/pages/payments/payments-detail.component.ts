@@ -111,6 +111,13 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   addFirstPaymentDate = '';
   addSaving = false;
 
+  /** خطة الدفعات القابلة للتعديل يدوياً في مودال إضافة عميل — تبدأ موزّعة تلقائياً
+   *  (20/20/20/20/15/5%) وتتحدّث تلقائياً مع تغيير السعر طالما المستخدم لم يعدّلها يدوياً؛
+   *  بمجرد أي تعديل يدوي (مبلغ، إضافة، حذف) تتوقف عن إعادة التوزيع التلقائي حتى يطلبه صراحةً.
+   *  كل صف فيه حقلا "نسبة %" و"مبلغ" متزامنين: تعديل أيّهما يحسب الآخر تلقائياً من سعر الوحدة. */
+  addInstallments: { amount: string; percent: string }[] = [];
+  private addAmountsTouched = false;
+
   openAdd() {
     if (!this.auth.canManagePayments) return;
     this.addName = '';
@@ -119,12 +126,68 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     this.addUnitCode = '';
     this.addUnitPrice = '';
     this.addFirstPaymentDate = '';
+    this.addInstallments = [];
+    this.addAmountsTouched = false;
     this.addOpen = true;
   }
   closeAdd() { this.addOpen = false; }
 
+  /** يعيد توزيع السعر الحالي على 6 دفعات بالنسب الافتراضية (20/20/20/20/15/5%) */
+  autoSplitInstallments() {
+    const price = Number(this.addUnitPrice) || 0;
+    this.addInstallments = this.PCTS.map((pct, i) => {
+      const amount = i < 5
+        ? Math.round(price * pct)
+        : price - this.PCTS.slice(0, 5).reduce((s, p) => s + Math.round(price * p), 0);
+      return { amount: price ? String(amount) : '', percent: String(+(pct * 100).toFixed(2)) };
+    });
+    this.addAmountsTouched = false;
+  }
+
+  /** يُستدعى عند تغيير سعر الوحدة — يعيد التوزيع التلقائي فقط لو المستخدم لسه ما لمسش الدفعات يدوياً */
+  onAddPriceChange() {
+    if (!this.addAmountsTouched) this.autoSplitInstallments();
+  }
+
+  /** كتابة نسبة مئوية في صف تحسب المبلغ تلقائياً (نسبة × سعر الوحدة) */
+  onAddPercentEdit(i: number) {
+    this.addAmountsTouched = true;
+    const price = Number(this.addUnitPrice) || 0;
+    const pct = Number(this.addInstallments[i].percent);
+    if (price && pct) this.addInstallments[i].amount = String(Math.round(price * pct / 100));
+  }
+  /** كتابة مبلغ مباشرة تحدّث نسبته المقابلة للعرض فقط */
+  onAddAmountEdit(i: number) {
+    this.addAmountsTouched = true;
+    const price = Number(this.addUnitPrice) || 0;
+    const amount = Number(this.addInstallments[i].amount);
+    if (price && amount) this.addInstallments[i].percent = String(+(amount / price * 100).toFixed(2));
+  }
+
+  addInstallmentRow() {
+    this.addAmountsTouched = true;
+    this.addInstallments.push({ amount: '', percent: '' });
+  }
+  removeInstallmentRow(i: number) {
+    if (this.addInstallments.length <= 1) return;
+    this.addAmountsTouched = true;
+    this.addInstallments.splice(i, 1);
+  }
+
+  get addInstallmentsTotal(): number {
+    return this.addInstallments.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  }
+  get addInstallmentsRemaining(): number {
+    return (Number(this.addUnitPrice) || 0) - this.addInstallmentsTotal;
+  }
+
   get addValid(): boolean {
-    return !!this.addName.trim() && !!this.addUnitPrice && !!this.addFirstPaymentDate;
+    return !!this.addName.trim()
+      && !!this.addUnitPrice
+      && !!this.addFirstPaymentDate
+      && this.addInstallments.length > 0
+      && this.addInstallments.every(r => Number(r.amount) > 0)
+      && Math.abs(this.addInstallmentsRemaining) < 1;
   }
 
   async submitAdd() {
@@ -141,17 +204,13 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     }
 
     const price = Number(this.addUnitPrice);
-    const PCTS = [0.20, 0.20, 0.20, 0.20, 0.15, 0.05];
-    const start = new Date(this.addFirstPaymentDate);
+    const [y, m, d] = this.addFirstPaymentDate.split('-').map(Number);
 
-    const installments = PCTS.map((pct, i) => {
-      const d = new Date(start);
-      d.setMonth(d.getMonth() + i * 3);
-      const amount = i < 5
-        ? Math.round(price * pct)
-        : price - PCTS.slice(0, 5).reduce((s, p) => s + Math.round(price * p), 0);
-      return { amount, dueDate: d.toISOString().split('T')[0] };
-    });
+    // ترتيب الدفعات كما رتّبها المستخدم يدوياً — كل دفعة تُستحق كل 3 أشهر من دفعة أول
+    const installments = this.addInstallments.map((row, i) => ({
+      amount: Math.round(Number(row.amount)),
+      dueDate: this.toDateStr(new Date(y, m - 1 + i * 3, d)),
+    }));
 
     const result = await this.supa.saveContract({
       projectName: this.projectName(),
@@ -226,6 +285,105 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     }
     this.editTarget = null;
     this.saving = false;
+  }
+
+  // ── Edit / delete a single payment (استثناء لعميل معيّن: مبلغ، تاريخ، أو حذف الدفعة كلها) ──
+  editPaymentTarget: PaymentRow | null = null;
+  editPaymentContract: ContractWithPayments | null = null;
+  editPaymentAmount = '';
+  editPaymentPercent = '';
+  editPaymentDate = '';
+  savingPayment = false;
+  confirmDeletePayment = false;
+  deletingPayment = false;
+
+  openEditPayment(p: PaymentRow, c: ContractWithPayments, ev: Event) {
+    ev.stopPropagation();
+    if (!this.auth.canManagePayments) return;
+    this.editPaymentTarget = p;
+    this.editPaymentContract = c;
+    this.editPaymentAmount = String(p.amount);
+    this.editPaymentPercent = c.unit_price ? String(+(p.amount / c.unit_price * 100).toFixed(2)) : '';
+    this.editPaymentDate = p.due_date;
+    this.confirmDeletePayment = false;
+  }
+  cancelEditPayment() {
+    this.editPaymentTarget = null;
+    this.editPaymentContract = null;
+    this.confirmDeletePayment = false;
+  }
+
+  /** كتابة نسبة مئوية تحسب المبلغ تلقائياً من سعر وحدة العقد */
+  onEditPaymentPercentChange() {
+    const price = this.editPaymentContract?.unit_price ?? 0;
+    const pct = Number(this.editPaymentPercent);
+    if (price && pct) this.editPaymentAmount = String(Math.round(price * pct / 100));
+  }
+  /** كتابة مبلغ مباشرة تحدّث النسبة المقابلة للعرض فقط */
+  onEditPaymentAmountChange() {
+    const price = this.editPaymentContract?.unit_price ?? 0;
+    const amount = Number(this.editPaymentAmount);
+    if (price && amount) this.editPaymentPercent = String(+(amount / price * 100).toFixed(2));
+  }
+
+  get editPaymentValid(): boolean {
+    const amount = Number(this.editPaymentAmount);
+    return !!amount && amount > 0 && !!this.editPaymentDate;
+  }
+
+  async saveEditPayment() {
+    if (!this.editPaymentTarget || !this.editPaymentContract || !this.editPaymentValid || this.savingPayment || !this.auth.canManagePayments) return;
+    this.savingPayment = true;
+    const id = this.editPaymentTarget.id;
+    const contractId = this.editPaymentContract.id;
+    const amount = Math.round(Number(this.editPaymentAmount));
+    const dueDate = this.editPaymentDate;
+    const clientName = this.editPaymentContract.client_name;
+
+    const ok = await this.supa.updatePayment(id, { amount, due_date: dueDate });
+    if (ok) {
+      this.contracts.update(list =>
+        list.map(c => c.id !== contractId ? c : {
+          ...c,
+          payments: c.payments.map(p => p.id !== id ? p : { ...p, amount, due_date: dueDate }),
+        })
+      );
+      this.toast.success(this.transloco.translate('detail.paymentUpdatedToast'), clientName);
+      this.cancelEditPayment();
+    } else {
+      this.toast.error(this.transloco.translate('detail.genericError'), this.transloco.translate('detail.changeNotSavedRetry'));
+    }
+    this.savingPayment = false;
+  }
+
+  askDeletePayment() { this.confirmDeletePayment = true; }
+  cancelDeletePaymentConfirm() { this.confirmDeletePayment = false; }
+
+  async executeDeletePayment() {
+    if (!this.editPaymentTarget || !this.editPaymentContract || this.deletingPayment || !this.auth.canManagePayments) return;
+    const contract = this.editPaymentContract;
+    if (contract.payments.length <= 1) {
+      this.toast.error(this.transloco.translate('detail.cannotDeleteLastPayment'));
+      return;
+    }
+    this.deletingPayment = true;
+    const id = this.editPaymentTarget.id;
+    const clientName = contract.client_name;
+
+    const ok = await this.supa.deletePayment(id);
+    if (ok) {
+      const remainingIds = contract.payments
+        .filter(p => p.id !== id)
+        .sort((a, b) => a.installment_number - b.installment_number)
+        .map(p => p.id);
+      await this.supa.renumberPayments(remainingIds);
+      await this.reloadContracts();
+      this.toast.success(this.transloco.translate('detail.paymentDeletedToast'), clientName);
+      this.cancelEditPayment();
+    } else {
+      this.toast.error(this.transloco.translate('detail.genericError'), this.transloco.translate('detail.changeNotSavedRetry'));
+    }
+    this.deletingPayment = false;
   }
 
   // ── Excel bulk import ────────────────────────────────────────────────────────
