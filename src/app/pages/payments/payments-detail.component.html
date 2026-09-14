@@ -118,6 +118,17 @@
 
             <!-- Actions -->
             <div class="flex items-center gap-1.5 ms-auto">
+              @if (clientEmail(c)) {
+                <button type="button" (click)="sendStatement(c)" [disabled]="!!sendingStatementId"
+                  class="grid h-8 w-8 place-items-center rounded-lg border border-line text-ink-muted hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition cursor-pointer disabled:opacity-50"
+                  [title]="'detail.sendStatement' | transloco">
+                  @if (sendingStatementId === c.id) {
+                    <span class="h-3.5 w-3.5 rounded-full border-2 border-ink-faint border-t-transparent animate-spin"></span>
+                  } @else {
+                    <app-icon name="mail" cls="h-3.5 w-3.5" />
+                  }
+                </button>
+              }
               @if (clientPhone(c)) {
                 <button type="button" (click)="openWhatsApp(c)"
                   class="grid h-8 w-8 place-items-center rounded-lg border border-line text-[#25D366] hover:bg-[#F0FDF9] hover:border-[#25D366] transition cursor-pointer"

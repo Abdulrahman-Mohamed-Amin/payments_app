@@ -852,6 +852,37 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     this.sendingReminders = false;
   }
 
+  // ── Send account statement (كشف حساب) — نفس قالب التذكير بصياغة مختلفة، لعميل واحد ──
+  sendingStatementId = '';
+
+  async sendStatement(c: ContractWithPayments) {
+    if (this.sendingStatementId) return;
+    if (!this.clientEmail(c)) {
+      this.toast.error(this.transloco.translate('detail.noEmailForClient'));
+      return;
+    }
+    this.sendingStatementId = c.id;
+    try {
+      const res = await fetch(
+        `https://efwfihirfxwncerdsemi.supabase.co/functions/v1/send-statement`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contract_id: c.id }),
+        }
+      );
+      const result = await res.json();
+      if (result.sent) {
+        this.toast.success(this.transloco.translate('detail.statementSentToast'), c.client_name);
+      } else {
+        this.toast.error(this.transloco.translate('detail.statementFailed'));
+      }
+    } catch {
+      this.toast.error(this.transloco.translate('detail.statementFailed'));
+    }
+    this.sendingStatementId = '';
+  }
+
   // ── Helpers ─────────────────────────────────────────────────────────────────
   paidCount(c: ContractWithPayments): number { return c.payments.filter(p => p.paid).length; }
   progressWidth(c: ContractWithPayments): string { return `${(this.paidCount(c) / c.payments.length) * 100}%`; }
