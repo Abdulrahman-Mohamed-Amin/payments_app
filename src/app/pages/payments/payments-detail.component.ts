@@ -930,32 +930,35 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     // ملاحظة: نستخدم النص العربي المخزَّن (لا الاسم المترجَم) عمداً — رسالة الواتساب
     // موجّهة للعميل مباشرة وتبقى عربية دائماً بغضّ النظر عن لغة واجهة الموظف
     const paymentLabel = targetPayment?.label ?? '';
-    const amount = targetPayment ? this.fmt(targetPayment.amount) : '';
-
-    // ملاحظة: لا نذكر تاريخ الاستحقاق أو مدة التأخير عمداً
-    const details = [
-      unitCode ? `▪️ الوحدة: ${unitCode}` : '',
-      paymentLabel ? `▪️ الدفعة: ${paymentLabel}` : '',
-      amount ? `▪️ المبلغ: ${amount} ريال` : '',
-    ].filter(Boolean).join('\n');
+    const amountNote = targetPayment ? ` بمبلغ ${this.fmt(targetPayment.amount)} ريال` : '';
+    const dueDate = targetPayment ? this.formatDate(targetPayment.due_date) : '';
+    const diffDays = targetPayment
+      ? Math.round((new Date(targetPayment.due_date).getTime() - now.getTime()) / 86400000)
+      : null;
+    const daysNote = diffDays === null ? '' :
+      diffDays < 0 ? ` (مستحقة منذ ${Math.abs(diffDays)} يوم)` :
+      diffDays === 0 ? ' (موعدها اليوم)' :
+      ` (باقي ${diffDays} يوم)`;
 
     const nameParts = c.client_name.trim().split(/\s+/);
     const firstName = nameParts.length > 1
       ? `${nameParts[0]} ${nameParts[nameParts.length - 1]}`
       : nameParts[0];
 
+    const senderName = this.auth.displayName || 'عبدالرحمن أمين';
+
     const text =
-`السلام عليكم ورحمة الله وبركاته، عساكم بخير إن شاء الله.
+`السلام عليكم ورحمة الله وبركاته 🌹
 
 أ/ ${firstName}
 
-نأمل منكم التكرم باستكمال الدفعة القادمة المستحقة ${"ل"+this.projectName()}، وذلك لضمان استمرار سير العمل في المشروع حسب الخطة.
-${details ? '\n' + details + '\n' : ''}
-ونعتذر لكم عن أي تأخير حصل في طلبات الدفعات مؤخرًا، حيث طرأت بعض التغييرات على الإجراءات الإدارية، وبإذن الله سنحرص على انتظام طلبات الدفعات وتحديثكم بكل المستجدات أولًا بأول.
+معك ${senderName} من شركة مدائن العقارية.
 
-مرفق لكم تقرير يوضح آخر ما تم إنجازه في المشروع.
+حبيت أذكركم بأنه تم إرسال إشعار على بريدكم الإلكتروني بخصوص ${paymentLabel}${amountNote}${dueDate ? ' التي بتاريخ ' + dueDate + daysNote : ''} الخاصة بالوحدة رقم ${unitCode} في ${this.projectName()}.
 
-شاكرين لكم ثقتكم وتعاونكم، والله يعطيكم العافية ويبارك لكم 🤲🏻`;
+إذا تكرمت، نأمل الاطلاع على البريد وإكمال الإجراءات في الوقت المناسب. وإذا كان السداد تم بالفعل، فتجاهل الرسالة مع جزيل الشكر.
+
+وإذا احتجت أي مساعدة أو كان عندك أي استفسار، أنا حاضر في أي وقت.`;
 
     return { phone, text };
   }
