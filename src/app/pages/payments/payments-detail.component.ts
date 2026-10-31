@@ -970,7 +970,10 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
 
   openWhatsApp(c: ContractWithPayments): void {
     const built = this.buildWhatsAppMessage(c);
-    if (!built) return;
+    if (!built) {
+      this.toast.info(this.transloco.translate('detail.noWaReminder'), this.transloco.translate('detail.noWaReminderSub'));
+      return;
+    }
     window.location.href = `whatsapp://send?phone=${built.phone}&text=${encodeURIComponent(built.text)}`;
   }
 

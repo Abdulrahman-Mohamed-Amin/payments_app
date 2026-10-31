@@ -265,6 +265,8 @@
     "genericError": "An error occurred",
     "changeNotSavedRetry": "The change was not saved, please try again",
     "sendWaReminders": "Send WhatsApp Reminders",
+    "noWaReminder": "No payment needs a reminder",
+    "noWaReminderSub": "Reminders are only available for payments overdue or due within 20 days",
     "noWaClients": "No clients need a reminder",
     "noWaClientsSub": "Reminders apply to payments overdue or due within 20 days, for clients with a phone number",
     "waQueueTitle": "Send WhatsApp Reminders",
