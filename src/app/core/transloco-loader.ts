@@ -8,7 +8,10 @@ import { Translation, TranslocoLoader } from '@jsverse/transloco';
 export class TranslocoHttpLoader implements TranslocoLoader {
   private http = inject(HttpClient);
 
+  /** Cache-buster so browsers never keep a stale translation file after a deploy. */
+  private readonly version = Date.now();
+
   getTranslation(lang: string) {
-    return this.http.get<Translation>(`i18n/${lang}.json`);
+    return this.http.get<Translation>(`i18n/${lang}.json?v=${this.version}`);
   }
 }

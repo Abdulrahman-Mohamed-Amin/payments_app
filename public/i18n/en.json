@@ -37,7 +37,9 @@
     "settingsSubtitle": "Customize your account and preferences",
     "generateSubtitle": "Generate contracts and payment notices",
     "projectDetailsTitle": "Project Details",
-    "projectDetailsSubtitle": "Project clients' payments"
+    "projectDetailsSubtitle": "Project clients' payments",
+    "clientProfileTitle": "Client profile",
+    "clientProfileSubtitle": "Client details and payments"
   },
   "login": {
     "companyName": "Madain Real Estate",
@@ -356,5 +358,37 @@
     "fillRequiredFields": "Please fill in all required fields",
     "generatingProgress": "Generating {{i}} / {{total}}...",
     "allFilesDownloaded": "✓ {{count}} file(s) — downloaded"
+  },
+  "profile": {
+    "notFound": "Client not found",
+    "whatsapp": "WhatsApp",
+    "edit": "Edit",
+    "delete": "Delete",
+    "payments": "Payments",
+    "paidTotal": "Paid",
+    "paidSoFar": "Paid",
+    "partialPayment": "Partial payment",
+    "totalPaidOfInstallment": "Total paid toward this installment",
+    "exceedsInstallment": "Amount exceeds the installment value",
+    "partialSavedToast": "Partial payment saved",
+    "notes": "Notes",
+    "notePlaceholder": "Write a note...",
+    "addNote": "Add note",
+    "noNotes": "No notes yet",
+    "edited": "edited",
+    "nationalId": "National ID",
+    "nationality": "Nationality",
+    "area": "Area",
+    "floor": "Floor",
+    "address": "Address",
+    "migrationHint": "Make sure the database update (new SQL file) has been applied",
+    "unitPrice": "Unit price",
+    "nextPayment": "Next payment",
+    "daysLeft": "{{days}} days left",
+    "daysLate": "{{days}} days late",
+    "dueToday": "Due today",
+    "allPaid": "All payments completed",
+    "clientInfo": "Client details",
+    "overdueCount": "{{count}} overdue"
   }
 }

@@ -28,10 +28,20 @@ export interface PaymentRow {
   contacted_at: string | null;
   last_reminded_at: string | null;
   reminder_count: number;
+  /** ما دفعه العميل جزئياً من الدفعة (قبل اكتمالها) */
+  paid_amount: number;
 }
 
 export interface ContractWithPayments extends ContractRow {
   payments: PaymentRow[];
+}
+
+export interface PaymentNote {
+  id: string;
+  payment_id: string;
+  body: string;
+  created_at: string;
+  updated_at: string | null;
 }
 
 const INSTALL_LABELS = [
@@ -164,6 +174,68 @@ export class SupabaseService {
         (a, b) => a.installment_number - b.installment_number
       ),
     }));
+  }
+
+  /** Load a single contract with its payments */
+  async loadContract(id: string): Promise<ContractWithPayments | null> {
+    const { data, error } = await this.db
+      .from('contracts')
+      .select('*, payments(*)')
+      .eq('id', id)
+      .maybeSingle();
+    if (error || !data) return null;
+    return {
+      ...data,
+      payments: (data.payments as PaymentRow[]).sort((a, b) => a.installment_number - b.installment_number),
+    };
+  }
+
+  /** Record how much of an installment the client has paid so far. Reaching the full
+   *  amount marks the installment as paid. */
+  async setPaidAmount(p: PaymentRow, paidAmount: number): Promise<Partial<PaymentRow> | null> {
+    const full = paidAmount >= p.amount;
+    const updates: Partial<PaymentRow> = {
+      paid_amount: Math.min(paidAmount, p.amount),
+      paid: full,
+      paid_at: full ? (p.paid_at ?? new Date().toISOString()) : null,
+    };
+    const { error } = await this.db.from('payments').update(updates).eq('id', p.id);
+    return error ? null : updates;
+  }
+
+  // ── Payment notes ───────────────────────────────────────────────────────────
+  async loadPaymentNotes(paymentIds: string[]): Promise<PaymentNote[] | null> {
+    if (!paymentIds.length) return [];
+    const { data, error } = await this.db
+      .from('payment_notes')
+      .select('*')
+      .in('payment_id', paymentIds)
+      .order('created_at', { ascending: false });
+    return error ? null : (data as PaymentNote[]);
+  }
+
+  async addPaymentNote(paymentId: string, body: string): Promise<PaymentNote | null> {
+    const { data, error } = await this.db
+      .from('payment_notes')
+      .insert({ payment_id: paymentId, body })
+      .select('*')
+      .single();
+    return error ? null : (data as PaymentNote);
+  }
+
+  async updatePaymentNote(id: string, body: string): Promise<PaymentNote | null> {
+    const { data, error } = await this.db
+      .from('payment_notes')
+      .update({ body, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('*')
+      .single();
+    return error ? null : (data as PaymentNote);
+  }
+
+  async deletePaymentNote(id: string): Promise<boolean> {
+    const { error } = await this.db.from('payment_notes').delete().eq('id', id);
+    return !error;
   }
 
   /** Toggle paid status of a single payment */

@@ -1,15 +1,16 @@
 import { Component, ElementRef, inject, OnInit, OnDestroy, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { IconComponent } from '../../core/icon/icon.component';
-import { SupabaseService, ContractWithPayments, PaymentRow } from '../../core/supabase.service';
+import { SupabaseService, ContractWithPayments } from '../../core/supabase.service';
 import { ToastService } from '../../core/toast.service';
 import { AuthService } from '../../core/auth.service';
+import * as PU from '../../core/payment-utils';
 
 interface XlsxRow {
   name: string;
@@ -34,7 +35,7 @@ interface XlsxRow {
 @Component({
   selector: 'app-payments-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, TranslocoModule],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, TranslocoModule],
   templateUrl: './payments-detail.component.html',
 })
 export class PaymentsDetailComponent implements OnInit, OnDestroy {
@@ -45,11 +46,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   private toast = inject(ToastService);
   readonly auth = inject(AuthService);
   private paramSub?: Subscription;
-  private querySub?: Subscription;
   private realtimeChannel?: RealtimeChannel;
-  private highlightTimer?: ReturnType<typeof setTimeout>;
-
-  highlightId = signal<string | null>(null);
 
   projectName = signal('');
   contracts = signal<ContractWithPayments[]>([]);
@@ -82,24 +79,6 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     );
   });
   clearSearch() { this.searchQuery.set(''); }
-
-  // ── Delete ──────────────────────────────────────────────────────────────────
-  deleteTargetId: string | null = null;
-  deleting = false;
-
-  confirmDelete(id: string) {
-    if (!this.auth.canManagePayments) return;
-    this.deleteTargetId = id;
-  }
-  cancelDelete() { this.deleteTargetId = null; }
-  async executeDelete() {
-    if (!this.deleteTargetId || !this.auth.canManagePayments) return;
-    this.deleting = true;
-    const ok = await this.supa.deleteContract(this.deleteTargetId);
-    if (ok) this.contracts.update(list => list.filter(c => c.id !== this.deleteTargetId));
-    this.deleteTargetId = null;
-    this.deleting = false;
-  }
 
   // ── Add Client ──────────────────────────────────────────────────────────────
   addOpen = false;
@@ -233,157 +212,6 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
       this.toast.success(this.transloco.translate('detail.addedToast'), this.addName.trim());
       this.addOpen = false;
     }
-  }
-
-  // ── Edit ────────────────────────────────────────────────────────────────────
-  editTarget: ContractWithPayments | null = null;
-  editName = '';
-  editEmail = '';
-  editPhone = '';
-  editUnitCode = '';
-  editContractDate = '';
-  saving = false;
-
-  openEdit(c: ContractWithPayments) {
-    if (!this.auth.canManagePayments) return;
-    this.editTarget = c;
-    this.editName = c.client_name;
-    this.editEmail = c.fields['email'] ?? '';
-    this.editPhone = c.fields['phone'] ?? '';
-    this.editUnitCode = c.fields['unit_code'] ?? '';
-    this.editContractDate = c.contract_date ?? '';
-  }
-  cancelEdit() { this.editTarget = null; }
-  async saveEdit() {
-    if (!this.editTarget || !this.auth.canManagePayments) return;
-    this.saving = true;
-    const newFields = { ...(this.editTarget.fields ?? {}), unit_code: this.editUnitCode, email: this.editEmail.trim(), phone: this.editPhone.trim() };
-    const dateChanged = this.editContractDate && this.editContractDate !== this.editTarget.contract_date;
-
-    const [ok, updatedPayments] = await Promise.all([
-      this.supa.updateContract(this.editTarget.id, {
-        client_name: this.editName,
-        contract_date: this.editContractDate,
-        fields: newFields,
-      }),
-      dateChanged
-        ? this.supa.recalcPaymentDates(this.editTarget.payments, this.editContractDate)
-        : Promise.resolve(null),
-    ]);
-
-    if (ok) {
-      this.contracts.update(list => list.map(c =>
-        c.id !== this.editTarget!.id ? c : {
-          ...c,
-          client_name: this.editName,
-          contract_date: this.editContractDate,
-          fields: newFields,
-          payments: updatedPayments ?? c.payments,
-        }
-      ));
-      if (dateChanged) this.toast.success(this.transloco.translate('detail.updatedToast'), this.transloco.translate('detail.datesRecalculated'));
-    }
-    this.editTarget = null;
-    this.saving = false;
-  }
-
-  // ── Edit / delete a single payment (استثناء لعميل معيّن: مبلغ، تاريخ، أو حذف الدفعة كلها) ──
-  editPaymentTarget: PaymentRow | null = null;
-  editPaymentContract: ContractWithPayments | null = null;
-  editPaymentAmount = '';
-  editPaymentPercent = '';
-  editPaymentDate = '';
-  savingPayment = false;
-  confirmDeletePayment = false;
-  deletingPayment = false;
-
-  openEditPayment(p: PaymentRow, c: ContractWithPayments, ev: Event) {
-    ev.stopPropagation();
-    if (!this.auth.canManagePayments) return;
-    this.editPaymentTarget = p;
-    this.editPaymentContract = c;
-    this.editPaymentAmount = String(p.amount);
-    this.editPaymentPercent = c.unit_price ? String(+(p.amount / c.unit_price * 100).toFixed(2)) : '';
-    this.editPaymentDate = p.due_date;
-    this.confirmDeletePayment = false;
-  }
-  cancelEditPayment() {
-    this.editPaymentTarget = null;
-    this.editPaymentContract = null;
-    this.confirmDeletePayment = false;
-  }
-
-  /** كتابة نسبة مئوية تحسب المبلغ تلقائياً من سعر وحدة العقد */
-  onEditPaymentPercentChange() {
-    const price = this.editPaymentContract?.unit_price ?? 0;
-    const pct = Number(this.editPaymentPercent);
-    if (price && pct) this.editPaymentAmount = String(Math.round(price * pct / 100));
-  }
-  /** كتابة مبلغ مباشرة تحدّث النسبة المقابلة للعرض فقط */
-  onEditPaymentAmountChange() {
-    const price = this.editPaymentContract?.unit_price ?? 0;
-    const amount = Number(this.editPaymentAmount);
-    if (price && amount) this.editPaymentPercent = String(+(amount / price * 100).toFixed(2));
-  }
-
-  get editPaymentValid(): boolean {
-    const amount = Number(this.editPaymentAmount);
-    return !!amount && amount > 0 && !!this.editPaymentDate;
-  }
-
-  async saveEditPayment() {
-    if (!this.editPaymentTarget || !this.editPaymentContract || !this.editPaymentValid || this.savingPayment || !this.auth.canManagePayments) return;
-    this.savingPayment = true;
-    const id = this.editPaymentTarget.id;
-    const contractId = this.editPaymentContract.id;
-    const amount = Math.round(Number(this.editPaymentAmount));
-    const dueDate = this.editPaymentDate;
-    const clientName = this.editPaymentContract.client_name;
-
-    const ok = await this.supa.updatePayment(id, { amount, due_date: dueDate });
-    if (ok) {
-      this.contracts.update(list =>
-        list.map(c => c.id !== contractId ? c : {
-          ...c,
-          payments: c.payments.map(p => p.id !== id ? p : { ...p, amount, due_date: dueDate }),
-        })
-      );
-      this.toast.success(this.transloco.translate('detail.paymentUpdatedToast'), clientName);
-      this.cancelEditPayment();
-    } else {
-      this.toast.error(this.transloco.translate('detail.genericError'), this.transloco.translate('detail.changeNotSavedRetry'));
-    }
-    this.savingPayment = false;
-  }
-
-  askDeletePayment() { this.confirmDeletePayment = true; }
-  cancelDeletePaymentConfirm() { this.confirmDeletePayment = false; }
-
-  async executeDeletePayment() {
-    if (!this.editPaymentTarget || !this.editPaymentContract || this.deletingPayment || !this.auth.canManagePayments) return;
-    const contract = this.editPaymentContract;
-    if (contract.payments.length <= 1) {
-      this.toast.error(this.transloco.translate('detail.cannotDeleteLastPayment'));
-      return;
-    }
-    this.deletingPayment = true;
-    const id = this.editPaymentTarget.id;
-    const clientName = contract.client_name;
-
-    const ok = await this.supa.deletePayment(id);
-    if (ok) {
-      const remainingIds = contract.payments
-        .filter(p => p.id !== id)
-        .sort((a, b) => a.installment_number - b.installment_number)
-        .map(p => p.id);
-      await this.supa.renumberPayments(remainingIds);
-      await this.reloadContracts();
-      this.toast.success(this.transloco.translate('detail.paymentDeletedToast'), clientName);
-      this.cancelEditPayment();
-    } else {
-      this.toast.error(this.transloco.translate('detail.genericError'), this.transloco.translate('detail.changeNotSavedRetry'));
-    }
-    this.deletingPayment = false;
   }
 
   // ── Excel bulk import ────────────────────────────────────────────────────────
@@ -776,23 +604,13 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
       this.loading.set(true);
       await this.reloadContracts();
       this.loading.set(false);
-      const hid = this.route.snapshot.queryParamMap.get('highlight');
-      if (hid) this.applyHighlight(hid);
       this.subscribeRealtime();
-    });
-
-    this.querySub = this.route.queryParamMap.subscribe(qp => {
-      if (this.loading()) return;
-      const hid = qp.get('highlight');
-      if (hid) this.applyHighlight(hid);
     });
   }
 
   ngOnDestroy() {
     this.paramSub?.unsubscribe();
-    this.querySub?.unsubscribe();
     this.realtimeChannel?.unsubscribe();
-    clearTimeout(this.highlightTimer);
   }
 
   private async reloadContracts() {
@@ -808,15 +626,6 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
         this.reloadContracts();
       })
       .subscribe();
-  }
-
-  private applyHighlight(id: string) {
-    clearTimeout(this.highlightTimer);
-    this.highlightId.set(id);
-    setTimeout(() => {
-      document.getElementById('client-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 150);
-    this.highlightTimer = setTimeout(() => this.highlightId.set(null), 3000);
   }
 
   back() { this.router.navigate(['/payments']); }
@@ -852,128 +661,19 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     this.sendingReminders = false;
   }
 
-  // ── Send account statement (كشف حساب) — نفس قالب التذكير بصياغة مختلفة، لعميل واحد ──
-  sendingStatementId = '';
-
-  async sendStatement(c: ContractWithPayments) {
-    if (this.sendingStatementId) return;
-    if (!this.clientEmail(c)) {
-      this.toast.error(this.transloco.translate('detail.noEmailForClient'));
-      return;
-    }
-    this.sendingStatementId = c.id;
-    try {
-      const res = await fetch(
-        `https://efwfihirfxwncerdsemi.supabase.co/functions/v1/send-statement`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contract_id: c.id }),
-        }
-      );
-      const result = await res.json();
-      if (result.sent) {
-        this.toast.success(this.transloco.translate('detail.statementSentToast'), c.client_name);
-      } else {
-        this.toast.error(this.transloco.translate('detail.statementFailed'));
-      }
-    } catch {
-      this.toast.error(this.transloco.translate('detail.statementFailed'));
-    }
-    this.sendingStatementId = '';
-  }
-
   // ── Helpers ─────────────────────────────────────────────────────────────────
+  readonly fmt = PU.fmt;
+  readonly clientPhone = PU.clientPhone;
   paidCount(c: ContractWithPayments): number { return c.payments.filter(p => p.paid).length; }
-  progressWidth(c: ContractWithPayments): string { return `${(this.paidCount(c) / c.payments.length) * 100}%`; }
-  remaining(c: ContractWithPayments): number {
-    return c.unit_price - c.payments.filter(p => p.paid).reduce((s, p) => s + p.amount, 0);
+  /** نسبة التحصيل بالمبلغ (تشمل الدفعات الجزئية) */
+  progressWidth(c: ContractWithPayments): string {
+    return c.unit_price ? `${Math.min(100, PU.contractPaidTotal(c) / c.unit_price * 100)}%` : '0%';
   }
-  isOverdue(p: PaymentRow): boolean { return !p.paid && new Date(p.due_date) < new Date(); }
-  isDueSoon(p: PaymentRow): boolean {
-    if (p.paid) return false;
-    const diff = (new Date(p.due_date).getTime() - Date.now()) / 86400000;
-    return diff >= 0 && diff <= 10;
-  }
-  canRemind(p: PaymentRow): boolean {
-    if (p.paid) return false;
-    const diff = (new Date(p.due_date).getTime() - Date.now()) / 86400000;
-    return diff <= 20;
-  }
-  hasWaReminder(c: ContractWithPayments): boolean {
-    return !!this.clientPhone(c) && c.payments.some(p => this.canRemind(p));
-  }
-  fmt(n: number): string { return n.toLocaleString('en-US'); }
-  clientEmail(c: ContractWithPayments): string {
-    const f = c.fields ?? {};
-    return f['email'] || f['mail'] || f['الايميل'] || f['البريد'] || f['البريد_الالكتروني'] || f['client_email'] || '';
-  }
-
-  clientPhone(c: ContractWithPayments): string {
-    const f = c.fields ?? {};
-    return (f['phone'] || f['mobile'] || '').replace(/[\s\-\(\)]/g, '');
-  }
-
-  /** يبني رقم الهاتف الدولي ونص رسالة التذكير لعميل — مشتركة بين الإرسال الفردي والجماعي */
-  private buildWhatsAppMessage(c: ContractWithPayments): { phone: string; text: string } | null {
-    let phone = this.clientPhone(c);
-    if (!phone) return null;
-    if (phone.startsWith('00')) phone = phone.slice(2);
-    if (phone.startsWith('+')) phone = phone.slice(1);
-    if (phone.startsWith('05')) phone = '966' + phone.slice(1);
-    else if (/^5\d{8}$/.test(phone)) phone = '966' + phone;
-    else if (!phone.startsWith('966')) phone = '966' + phone;
-
-    const now = new Date();
-    // التذكير فقط للدفعات المتأخرة أو التي باقٍ على موعدها 20 يوماً أو أقل
-    const targetPayment =
-      c.payments.find(p => !p.paid && new Date(p.due_date) < now) ??
-      c.payments.find(p => this.canRemind(p));
-    // لا توجد دفعة تستدعي التذكير → نفتح المحادثة بلا رسالة
-    if (!targetPayment) return { phone, text: '' };
-
-    const unitCode = c.fields?.['unit_code'] ?? '';
-    // ملاحظة: نستخدم النص العربي المخزَّن (لا الاسم المترجَم) عمداً — رسالة الواتساب
-    // موجّهة للعميل مباشرة وتبقى عربية دائماً بغضّ النظر عن لغة واجهة الموظف
-    const paymentLabel = targetPayment?.label ?? '';
-    const amountNote = targetPayment ? ` بمبلغ ${this.fmt(targetPayment.amount)} ريال` : '';
-    const dueDate = targetPayment ? this.formatDate(targetPayment.due_date) : '';
-    const diffDays = targetPayment
-      ? Math.round((new Date(targetPayment.due_date).getTime() - now.getTime()) / 86400000)
-      : null;
-    const daysNote = diffDays === null ? '' :
-      diffDays < 0 ? ` (مستحقة منذ ${Math.abs(diffDays)} يوم)` :
-      diffDays === 0 ? ' (موعدها اليوم)' :
-      ` (باقي ${diffDays} يوم)`;
-
-    const nameParts = c.client_name.trim().split(/\s+/);
-    const firstName = nameParts.length > 1
-      ? `${nameParts[0]} ${nameParts[nameParts.length - 1]}`
-      : nameParts[0];
-
-    const senderName = this.auth.displayName || 'عبدالرحمن أمين';
-
-    const text =
-`السلام عليكم ورحمة الله وبركاته 🌹
-
-أ/ ${firstName}
-
-معك ${senderName} من شركة مدائن العقارية.
-
-حبيت أذكركم بموعد ${paymentLabel}${amountNote}${dueDate ? ' التي بتاريخ ' + dueDate + daysNote : ''} الخاصة بالوحدة رقم ${unitCode} في ${this.projectName()}.
-
-إذا تكرمت، نأمل إكمال السداد في الوقت المناسب. وإذا كان السداد تم بالفعل، فتجاهل الرسالة مع جزيل الشكر.
-
-وإذا احتجت أي مساعدة أو كان عندك أي استفسار، أنا حاضر في أي وقت.`;
-
-    return { phone, text };
-  }
-
-  openWhatsApp(c: ContractWithPayments): void {
-    const built = this.buildWhatsAppMessage(c);
-    if (!built) return;
-    const textParam = built.text ? `&text=${encodeURIComponent(built.text)}` : '';
-    window.location.href = `whatsapp://send?phone=${built.phone}${textParam}`;
+  /** حالة العلامة على الكارد: متأخرة تتقدّم على القريبة */
+  cardStatus(c: ContractWithPayments): 'overdue' | 'soon' | null {
+    if (c.payments.some(p => PU.isOverdue(p))) return 'overdue';
+    if (c.payments.some(p => PU.isDueSoon(p))) return 'soon';
+    return null;
   }
 
   // ── Bulk WhatsApp reminders (شبه-جماعي: نافذة تسير على العملاء واحداً واحداً) ───
@@ -987,7 +687,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   }
 
   startWhatsAppReminders(): void {
-    this.waQueue = this.contracts().filter(c => this.hasWaReminder(c));
+    this.waQueue = this.contracts().filter(c => PU.hasWaReminder(c));
     if (!this.waQueue.length) {
       this.toast.info(this.transloco.translate('detail.noWaClients'), this.transloco.translate('detail.noWaClientsSub'));
       return;
@@ -1001,7 +701,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   sendCurrentWhatsApp(): void {
     const c = this.waQueueCurrent;
     if (!c) return;
-    const built = this.buildWhatsAppMessage(c);
+    const built = PU.buildWhatsAppMessage(c, this.projectName(), this.auth.displayName);
     if (built) {
       window.open(`https://wa.me/${built.phone}?text=${encodeURIComponent(built.text)}`, '_blank');
       this.waSentCount++;
@@ -1026,55 +726,5 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     this.waQueueOpen = false;
     this.waQueue = [];
     this.waQueueIndex = 0;
-  }
-  async sendEarlyReminder(p: PaymentRow, c: ContractWithPayments) {
-    if (this.remindingId || p.reminder_count >= 2) return;
-    this.remindingId = p.id;
-    const res = await this.supa.sendEarlyReminder(p.id, this.projectName());
-    this.remindingId = '';
-    if (res.sent) {
-      p.last_reminded_at = new Date().toISOString();
-      p.reminder_count = res.reminder_count ?? (p.reminder_count + 1);
-      this.toast.success(this.transloco.translate('detail.reminderSentToast'), `${c.client_name} · ${p.reminder_count}/2`);
-    } else if (res.limit_reached) {
-      this.toast.error(this.transloco.translate('detail.reminderLimitReached'));
-    } else {
-      this.toast.error(this.transloco.translate(res.error?.includes('إيميل') ? 'detail.noEmailForClient' : 'detail.reminderFailed'));
-    }
-  }
-
-  formatDate(iso: string): string {
-    if (!iso) return '';
-    const [y, m, d] = iso.split('-');
-    return `${d}/${m}/${y}`;
-  }
-
-  /** يبني اسم القسط مترجَماً حسب لغة الواجهة الحالية من رقم القسط (بدل الاعتماد على
-   *  حقل `label` المخزَّن، وهو نص عربي ثابت لا يتغيّر مع تبديل اللغة) */
-  installmentLabel(p: PaymentRow): string {
-    return `${this.transloco.translate('payments.installment')} ${this.transloco.translate('payments.ordinal' + p.installment_number)}`;
-  }
-
-  async toggle(p: PaymentRow, c: ContractWithPayments) {
-    const ok = await this.supa.togglePayment(p.id, p.paid);
-    if (ok) {
-      const nowPaid = !p.paid;
-      this.contracts.update(list =>
-        list.map(contract => contract.id !== c.id ? contract : {
-          ...contract,
-          payments: contract.payments.map(pay =>
-            pay.id !== p.id ? pay : { ...pay, paid: nowPaid, paid_at: nowPaid ? new Date().toISOString() : null }
-          ),
-        })
-      );
-      const label = this.installmentLabel(p);
-      if (nowPaid) {
-        this.toast.success(this.transloco.translate('detail.paymentRegisteredToast'), `${label} — ${c.client_name}`);
-      } else {
-        this.toast.info(this.transloco.translate('detail.paymentCancelledToast'), `${label} — ${c.client_name}`);
-      }
-    } else {
-      this.toast.error(this.transloco.translate('detail.genericError'), this.transloco.translate('detail.changeNotSavedRetry'));
-    }
   }
 }

@@ -37,7 +37,9 @@
     "settingsSubtitle": "تخصيص الحساب والتفضيلات",
     "generateSubtitle": "توليد العقود وإشعارات الدفع",
     "projectDetailsTitle": "تفاصيل المشروع",
-    "projectDetailsSubtitle": "دفعات عملاء المشروع"
+    "projectDetailsSubtitle": "دفعات عملاء المشروع",
+    "clientProfileTitle": "بروفايل العميل",
+    "clientProfileSubtitle": "تفاصيل العميل ودفعاته"
   },
   "login": {
     "companyName": "مدائن العقارية",
@@ -356,5 +358,37 @@
     "fillRequiredFields": "يرجى تعبئة جميع الحقول المطلوبة",
     "generatingProgress": "جاري التوليد {{i}} / {{total}}...",
     "allFilesDownloaded": "✓ {{count}} ملف — تم التنزيل"
+  },
+  "profile": {
+    "notFound": "لم يتم العثور على العميل",
+    "whatsapp": "واتساب",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "payments": "الدفعات",
+    "paidTotal": "المدفوع",
+    "paidSoFar": "المدفوع",
+    "partialPayment": "دفعة جزئية",
+    "totalPaidOfInstallment": "إجمالي المدفوع من هذه الدفعة",
+    "exceedsInstallment": "المبلغ أكبر من قيمة الدفعة",
+    "partialSavedToast": "تم حفظ الدفعة الجزئية",
+    "notes": "ملاحظات",
+    "notePlaceholder": "اكتب ملاحظة...",
+    "addNote": "إضافة ملاحظة",
+    "noNotes": "لا توجد ملاحظات بعد",
+    "edited": "عُدّلت",
+    "nationalId": "رقم الهوية",
+    "nationality": "الجنسية",
+    "area": "المساحة",
+    "floor": "الدور",
+    "address": "العنوان",
+    "migrationHint": "تأكد من تحديث قاعدة البيانات (ملف SQL الجديد)",
+    "unitPrice": "سعر الوحدة",
+    "nextPayment": "الدفعة القادمة",
+    "daysLeft": "باقي {{days}} يوم",
+    "daysLate": "متأخرة {{days}} يوم",
+    "dueToday": "مستحقة اليوم",
+    "allPaid": "تم سداد كل الدفعات",
+    "clientInfo": "بيانات العميل",
+    "overdueCount": "{{count}} متأخرة"
   }
 }

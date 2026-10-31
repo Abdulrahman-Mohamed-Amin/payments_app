@@ -146,7 +146,7 @@
               @if (payments.overdueList().length > 0) {
                 <div class="divide-y divide-line max-h-72 overflow-y-auto">
                   @for (item of payments.overdueList(); track item.clientId + item.payment.id) {
-                    <a [routerLink]="['/payments', item.projectName]" [queryParams]="{ highlight: item.clientId }" (click)="notifOpen = false"
+                    <a [routerLink]="['/payments', item.projectName, 'client', item.clientId]" (click)="notifOpen = false"
                        class="flex items-start gap-3 px-4 py-3 hover:bg-canvas transition cursor-pointer">
                       <div class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#FEE2E2] text-[#DC2626] mt-0.5">
                         <app-icon name="alert" cls="h-4 w-4" />

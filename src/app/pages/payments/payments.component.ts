@@ -8,6 +8,7 @@ import { SupabaseService, ContractWithPayments } from '../../core/supabase.servi
 import { ToastService } from '../../core/toast.service';
 import { AuthService } from '../../core/auth.service';
 import { LanguageService } from '../../core/language.service';
+import { contractPaidTotal, paidAmountOf } from '../../core/payment-utils';
 
 export interface InstallmentSummary {
   number: number;
@@ -62,7 +63,7 @@ export class PaymentsComponent implements OnInit {
         return {
           number: num,
           label: LABELS[i],
-          paid: all.filter(pay => pay.paid).reduce((s, pay) => s + pay.amount, 0),
+          paid: all.reduce((s, pay) => s + paidAmountOf(pay), 0),
           total: all.reduce((s, pay) => s + pay.amount, 0),
         };
       }).filter(inst => inst.total > 0);
@@ -73,9 +74,9 @@ export class PaymentsComponent implements OnInit {
         overdueCount: cs.reduce((s, c) =>
           s + c.payments.filter(pay => !pay.paid && new Date(pay.due_date) < now).length, 0),
         paidTotal: cs.reduce((s, c) =>
-          s + c.payments.filter(pay => pay.paid).reduce((ss, pay) => ss + pay.amount, 0), 0),
+          s + contractPaidTotal(c), 0),
         remaining: cs.reduce((s, c) =>
-          s + c.unit_price - c.payments.filter(pay => pay.paid).reduce((ss, pay) => ss + pay.amount, 0), 0),
+          s + c.unit_price - contractPaidTotal(c), 0),
         installments,
       };
     });

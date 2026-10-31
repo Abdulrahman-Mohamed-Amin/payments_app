@@ -29,6 +29,11 @@ export const routes: Routes = [
         data: { title: 'layout.projectDetailsTitle', subtitle: 'layout.projectDetailsSubtitle' },
       },
       {
+        path: 'payments/:project/client/:id',
+        loadComponent: () => import('./pages/payments/client-profile.component').then((m) => m.ClientProfileComponent),
+        data: { title: 'layout.clientProfileTitle', subtitle: 'layout.clientProfileSubtitle' },
+      },
+      {
         path: 'generate',
         loadComponent: () => import('./pages/generate/generate.component').then((m) => m.GenerateComponent),
         data: { title: 'nav.generate', subtitle: 'layout.generateSubtitle' },

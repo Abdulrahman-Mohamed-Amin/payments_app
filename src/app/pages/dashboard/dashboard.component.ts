@@ -6,6 +6,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 import { IconComponent } from '../../core/icon/icon.component';
 import { PaymentsService } from '../../core/payments.service';
 import { SupabaseService } from '../../core/supabase.service';
+import { contractPaidTotal, remainingOf } from '../../core/payment-utils';
 
 @Component({
   selector: 'app-dashboard',
@@ -25,13 +26,13 @@ export class DashboardComponent implements OnInit {
 
   readonly paidAmount = computed(() =>
     this._c().reduce((sum, c) =>
-      sum + c.payments.filter(p => p.paid).reduce((s, p) => s + p.amount, 0), 0
+      sum + contractPaidTotal(c), 0
     )
   );
 
   readonly remainingAmount = computed(() =>
     this._c().reduce((sum, c) =>
-      sum + c.payments.filter(p => !p.paid).reduce((s, p) => s + p.amount, 0), 0
+      sum + c.payments.reduce((s, p) => s + remainingOf(p), 0), 0
     )
   );
 
