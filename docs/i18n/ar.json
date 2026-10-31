@@ -266,7 +266,7 @@
     "changeNotSavedRetry": "لم يتم حفظ التغيير، حاول مرة أخرى",
     "sendWaReminders": "إرسال تذكيرات واتساب",
     "noWaClients": "لا يوجد عملاء بحاجة لتذكير",
-    "noWaClientsSub": "تأكد من وجود رقم جوال للعملاء المتأخرين",
+    "noWaClientsSub": "التذكير يظهر للدفعات المتأخرة أو المستحقة خلال 20 يوماً، مع وجود رقم جوال للعميل",
     "waQueueTitle": "إرسال تذكيرات واتساب",
     "waQueueProgress": "عميل {{current}} من {{total}}",
     "waOpenAndSend": "فتح واتساب والانتقال للتالي",

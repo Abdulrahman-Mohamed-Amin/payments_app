@@ -129,7 +129,7 @@
                   }
                 </button>
               }
-              @if (clientPhone(c)) {
+              @if (hasWaReminder(c)) {
                 <button type="button" (click)="openWhatsApp(c)"
                   class="grid h-8 w-8 place-items-center rounded-lg border border-line text-[#25D366] hover:bg-[#F0FDF9] hover:border-[#25D366] transition cursor-pointer"
                   title="{{ clientPhone(c) }}">

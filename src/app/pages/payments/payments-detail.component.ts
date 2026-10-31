@@ -900,6 +900,9 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     const diff = (new Date(p.due_date).getTime() - Date.now()) / 86400000;
     return diff <= 20;
   }
+  hasWaReminder(c: ContractWithPayments): boolean {
+    return !!this.clientPhone(c) && c.payments.some(p => this.canRemind(p));
+  }
   fmt(n: number): string { return n.toLocaleString('en-US'); }
   clientEmail(c: ContractWithPayments): string {
     const f = c.fields ?? {};
@@ -922,9 +925,11 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     else if (!phone.startsWith('966')) phone = '966' + phone;
 
     const now = new Date();
+    // التذكير فقط للدفعات المتأخرة أو التي باقٍ على موعدها 20 يوماً أو أقل
     const targetPayment =
       c.payments.find(p => !p.paid && new Date(p.due_date) < now) ??
-      c.payments.find(p => !p.paid);
+      c.payments.find(p => this.canRemind(p));
+    if (!targetPayment) return null;
 
     const unitCode = c.fields?.['unit_code'] ?? '';
     // ملاحظة: نستخدم النص العربي المخزَّن (لا الاسم المترجَم) عمداً — رسالة الواتساب
@@ -980,10 +985,7 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
   }
 
   startWhatsAppReminders(): void {
-    const now = new Date();
-    this.waQueue = this.contracts().filter(c =>
-      c.payments.some(p => !p.paid && new Date(p.due_date) < now) && !!this.clientPhone(c)
-    );
+    this.waQueue = this.contracts().filter(c => this.hasWaReminder(c));
     if (!this.waQueue.length) {
       this.toast.info(this.transloco.translate('detail.noWaClients'), this.transloco.translate('detail.noWaClientsSub'));
       return;

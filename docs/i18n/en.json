@@ -266,7 +266,7 @@
     "changeNotSavedRetry": "The change was not saved, please try again",
     "sendWaReminders": "Send WhatsApp Reminders",
     "noWaClients": "No clients need a reminder",
-    "noWaClientsSub": "Make sure overdue clients have a phone number on file",
+    "noWaClientsSub": "Reminders apply to payments overdue or due within 20 days, for clients with a phone number",
     "waQueueTitle": "Send WhatsApp Reminders",
     "waQueueProgress": "Client {{current}} of {{total}}",
     "waOpenAndSend": "Open WhatsApp & Next",
