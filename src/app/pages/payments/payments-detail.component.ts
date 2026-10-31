@@ -929,7 +929,8 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
     const targetPayment =
       c.payments.find(p => !p.paid && new Date(p.due_date) < now) ??
       c.payments.find(p => this.canRemind(p));
-    if (!targetPayment) return null;
+    // لا توجد دفعة تستدعي التذكير → نفتح المحادثة بلا رسالة
+    if (!targetPayment) return { phone, text: '' };
 
     const unitCode = c.fields?.['unit_code'] ?? '';
     // ملاحظة: نستخدم النص العربي المخزَّن (لا الاسم المترجَم) عمداً — رسالة الواتساب
@@ -970,11 +971,9 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
 
   openWhatsApp(c: ContractWithPayments): void {
     const built = this.buildWhatsAppMessage(c);
-    if (!built) {
-      this.toast.info(this.transloco.translate('detail.noWaReminder'), this.transloco.translate('detail.noWaReminderSub'));
-      return;
-    }
-    window.location.href = `whatsapp://send?phone=${built.phone}&text=${encodeURIComponent(built.text)}`;
+    if (!built) return;
+    const textParam = built.text ? `&text=${encodeURIComponent(built.text)}` : '';
+    window.location.href = `whatsapp://send?phone=${built.phone}${textParam}`;
   }
 
   // ── Bulk WhatsApp reminders (شبه-جماعي: نافذة تسير على العملاء واحداً واحداً) ───
