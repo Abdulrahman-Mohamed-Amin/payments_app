@@ -954,9 +954,9 @@ export class PaymentsDetailComponent implements OnInit, OnDestroy {
 
 معك ${senderName} من شركة مدائن العقارية.
 
-حبيت أذكركم بأنه تم إرسال إشعار على بريدكم الإلكتروني بخصوص ${paymentLabel}${amountNote}${dueDate ? ' التي بتاريخ ' + dueDate + daysNote : ''} الخاصة بالوحدة رقم ${unitCode} في ${this.projectName()}.
+حبيت أذكركم بموعد ${paymentLabel}${amountNote}${dueDate ? ' التي بتاريخ ' + dueDate + daysNote : ''} الخاصة بالوحدة رقم ${unitCode} في ${this.projectName()}.
 
-إذا تكرمت، نأمل الاطلاع على البريد وإكمال الإجراءات في الوقت المناسب. وإذا كان السداد تم بالفعل، فتجاهل الرسالة مع جزيل الشكر.
+إذا تكرمت، نأمل إكمال السداد في الوقت المناسب. وإذا كان السداد تم بالفعل، فتجاهل الرسالة مع جزيل الشكر.
 
 وإذا احتجت أي مساعدة أو كان عندك أي استفسار، أنا حاضر في أي وقت.`;
 
