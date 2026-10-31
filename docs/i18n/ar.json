@@ -144,7 +144,45 @@
     "account": "الحساب",
     "accountSub": "إجراءات الحساب",
     "saved": "تم الحفظ",
-    "saveChanges": "حفظ التغييرات"
+    "saveChanges": "حفظ التغييرات",
+    "users": "المستخدمون",
+    "usersSub": "إضافة المستخدمين وتحديد صلاحياتهم",
+    "addUser": "إضافة مستخدم",
+    "createUser": "إنشاء المستخدم",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "passwordHint": "6 أحرف على الأقل",
+    "permission": "الصلاحية",
+    "perm": {
+      "admin": "أدمن",
+      "full": "صلاحية كاملة",
+      "viewer": "عرض فقط"
+    },
+    "permHint": {
+      "admin": "كل الصلاحيات + إدارة المستخدمين",
+      "full": "تسجيل وتعديل الدفعات والعملاء",
+      "viewer": "يشوف البيانات بس من غير تعديل"
+    },
+    "you": "أنت",
+    "lastLogin": "آخر دخول",
+    "retry": "إعادة المحاولة",
+    "changePassword": "تغيير كلمة المرور",
+    "userCreated": "تم إنشاء المستخدم",
+    "permissionUpdated": "تم تحديث الصلاحية",
+    "passwordUpdated": "تم تغيير كلمة المرور",
+    "userDeleted": "تم حذف المستخدم",
+    "deleteUserTitle": "حذف المستخدم",
+    "deleteUserText": "سيتم حذف حساب {{name}} نهائياً ولن يستطيع الدخول.",
+    "userErrors": {
+      "user_exists": "اسم المستخدم موجود بالفعل",
+      "invalid_username": "اسم المستخدم لازم يكون 3 حروف إنجليزي أو أرقام على الأقل",
+      "weak_password": "كلمة المرور لازم تكون 6 أحرف على الأقل",
+      "forbidden": "هذه الصلاحية للأدمن فقط",
+      "unauthorized": "سجّل الدخول مرة أخرى",
+      "cannot_demote_self": "لا يمكنك تغيير صلاحيتك",
+      "cannot_delete_self": "لا يمكنك حذف حسابك",
+      "generic": "حدث خطأ، حاول مرة أخرى"
+    }
   },
   "detail": {
     "backToProjects": "المشاريع",

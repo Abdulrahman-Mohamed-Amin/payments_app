@@ -43,6 +43,11 @@ export class AuthService {
     return this.currentUser?.app_metadata?.['payments_manage'] !== false;
   }
 
+  /** Admins can manage users (set only via app_metadata.role, not editable by the user) */
+  get isAdmin(): boolean {
+    return this.currentUser?.app_metadata?.['role'] === 'admin';
+  }
+
   get displayName(): string {
     return this.currentUser?.user_metadata?.['name'] ?? '';
   }

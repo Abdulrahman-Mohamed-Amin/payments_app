@@ -144,7 +144,45 @@
     "account": "Account",
     "accountSub": "Account actions",
     "saved": "Saved",
-    "saveChanges": "Save Changes"
+    "saveChanges": "Save Changes",
+    "users": "Users",
+    "usersSub": "Add users and set their permissions",
+    "addUser": "Add user",
+    "createUser": "Create user",
+    "username": "Username",
+    "password": "Password",
+    "passwordHint": "At least 6 characters",
+    "permission": "Permission",
+    "perm": {
+      "admin": "Admin",
+      "full": "Full access",
+      "viewer": "View only"
+    },
+    "permHint": {
+      "admin": "Everything + user management",
+      "full": "Register and edit payments and clients",
+      "viewer": "Can view data without editing"
+    },
+    "you": "You",
+    "lastLogin": "Last login",
+    "retry": "Retry",
+    "changePassword": "Change password",
+    "userCreated": "User created",
+    "permissionUpdated": "Permission updated",
+    "passwordUpdated": "Password changed",
+    "userDeleted": "User deleted",
+    "deleteUserTitle": "Delete user",
+    "deleteUserText": "{{name}}'s account will be permanently deleted and they will no longer be able to sign in.",
+    "userErrors": {
+      "user_exists": "Username already exists",
+      "invalid_username": "Username must be at least 3 English letters or digits",
+      "weak_password": "Password must be at least 6 characters",
+      "forbidden": "Admins only",
+      "unauthorized": "Please sign in again",
+      "cannot_demote_self": "You cannot change your own permission",
+      "cannot_delete_self": "You cannot delete your own account",
+      "generic": "Something went wrong, please try again"
+    }
   },
   "detail": {
     "backToProjects": "Projects",
